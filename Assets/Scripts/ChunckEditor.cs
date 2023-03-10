@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
-[CustomEditor(typeof(MC_Chunk))]
+[CustomEditor(typeof(MC_Octree))]
 public class ChunckEditor : Editor
 {
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
 
-        MC_Chunk chunk = (MC_Chunk)target;
+        MC_Octree chunk = (MC_Octree)target;
         if(GUILayout.Button("Set vertecie"))
         {
             chunk.setVertexIsOnSurface();

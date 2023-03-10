@@ -1,13 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
-public class MC_Chunk : MonoBehaviour
+public class MC_Octree : MonoBehaviour
 {
-    [SerializeField] public bool _Debug = true;
+    [SerializeField] public bool _Debug = false;
     [SerializeField] public Vector3Int _index = Vector3Int.zero;
     [SerializeField] public bool _onSur = true;
     private Material _mat;
+    private Planet _planet;
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
     private MeshCollider _meshCollider;
@@ -19,7 +21,10 @@ public class MC_Chunk : MonoBehaviour
     private Vector3 _ratioVec;
     private MC_Vertex[,,] _vertecies;
 
-    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat)
+    private bool isDivided = false;
+    private MC_Octree[] _chunks = new MC_Octree[8];
+
+    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet)
     {
         _position = position;
         _size = size;
@@ -27,12 +32,45 @@ public class MC_Chunk : MonoBehaviour
         _ratioVec = new Vector3(_size.x / _resolution.x, _size.y / _resolution.y, _size.z / _resolution.z);
         _vertecies = new MC_Vertex[(_resolution.x+1),(_resolution.y+1),(_resolution.z+1)];
         _mat = mat;
-         _meshRenderer.material = _mat;
+        _meshRenderer.material = _mat;
+        _planet = planet;
 
-        transform.localPosition = _position;
+        transform.position = _position;
+
+        EventManager.current.OctreeCreated(this);
 
         generateVertecies();
         generateMesh();
+    }
+
+    public void divide()
+    {
+        if(!isDivided)
+        {
+            for (int i = 0; i < 8; i++) {
+                GameObject chunkObj = new GameObject("Chunk_"+i);
+                chunkObj.transform.parent = transform;
+                MC_Octree chunk = chunkObj.AddComponent<MC_Octree>();
+                chunk.initiate((transform.position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet);
+                _chunks[i] = chunk;
+            }
+            isDivided = true;
+            _meshRenderer.enabled = false;
+            _meshCollider.enabled = false;
+        }
+    }
+
+    public void merge()
+    {
+        if(isDivided)
+        {
+            for (int i = 0; i < 8; i++) {
+                Destroy(_chunks[i].gameObject);
+            }
+            isDivided = false;
+            _meshRenderer.enabled = true;
+            _meshCollider.enabled = true;
+        }
     }
 
     private void Awake()
@@ -48,6 +86,7 @@ public class MC_Chunk : MonoBehaviour
         _meshCollider.sharedMesh = _mesh;
     }
 
+// TODO only add vertecies that are on the surface
     private void generateVertecies()
     {
         for (int x = 0; x < _resolution.x+1; x++)
@@ -56,10 +95,21 @@ public class MC_Chunk : MonoBehaviour
             {
                 for (int z = 0; z < _resolution.z+1; z++)
                 {
-                    _vertecies[x,y,z] = new MC_Vertex(new Vector3(_ratioVec.x*x, _ratioVec.y*y, _ratioVec.z*z), false);
+                    Vector3 tmpPos = new Vector3(_ratioVec.x*(x-_resolution.x/2), _ratioVec.y*(y-_resolution.y/2), _ratioVec.z*(z-_resolution.z/2));
+                    _vertecies[x,y,z] = new MC_Vertex(tmpPos, _planet.calcVert(tmpPos + transform.position));
                 }
             }
         }
+    }
+
+    public bool getIsDivided()
+    {
+        return isDivided;
+    }
+
+    public float getSize()
+    {
+        return _size.x;
     }
 
     public void setVertexIsOnSurface(int x = -1, int y = -1, int z = -1, bool isOnSurface = true)
@@ -76,8 +126,8 @@ public class MC_Chunk : MonoBehaviour
 
     private void generateMesh() {
         _mesh.Clear();
-        Dictionary<int, Vector3> vertecies = new Dictionary<int, Vector3>();
-        Dictionary<int, int> triang = new Dictionary<int, int>();
+        List<Vector3> vertecies = new List<Vector3>();
+        List<int> triang = new List<int>();
         for(int x = 0; x < _resolution.x; x++)
         {
             for(int y = 0; y < _resolution.y; y++)
@@ -90,9 +140,9 @@ public class MC_Chunk : MonoBehaviour
         }
         
         Vector3[] vertices = new Vector3[vertecies.Count];
-        vertecies.Values.CopyTo(vertices, 0);
+        vertecies.CopyTo(vertices, 0);
         int[] triangles = new int[triang.Count];
-        triang.Values.CopyTo(triangles, 0);
+        triang.CopyTo(triangles, 0);
 
         _mesh.vertices = vertices;
         _mesh.triangles = triangles;
@@ -102,7 +152,8 @@ public class MC_Chunk : MonoBehaviour
         _meshCollider.sharedMesh = _mesh;
     }
 
-    private void marchCube(Vector3Int index, ref Dictionary<int, Vector3> vertecies, ref Dictionary<int, int> triang)
+// TODO always calc 4 cubes at once to share edgeverts (one chunc is atleas 2x2x2 cubes)
+    private void marchCube(Vector3Int index, ref List<Vector3> vertecies, ref List<int> triang)
     {
         MC_Vertex[] cube = new MC_Vertex[8];
         cube[0] = _vertecies[index.x, index.y, index.z];
@@ -132,35 +183,35 @@ public class MC_Chunk : MonoBehaviour
         }
       
         // Find the vertices where the surface intersects the cube
-        Dictionary<int, Vector3> edgeVertecies = new Dictionary<int, Vector3>();
-        edgeVertecies.Add(0, (cube[0].GetPosition() + cube[1].GetPosition()) / 2);
-        edgeVertecies.Add(1, (cube[1].GetPosition() + cube[3].GetPosition()) / 2);
-        edgeVertecies.Add(2, (cube[3].GetPosition() + cube[2].GetPosition()) / 2);
-        edgeVertecies.Add(3, (cube[2].GetPosition() + cube[0].GetPosition()) / 2);
-        edgeVertecies.Add(4, (cube[4].GetPosition() + cube[5].GetPosition()) / 2);
-        edgeVertecies.Add(5, (cube[5].GetPosition() + cube[7].GetPosition()) / 2);
-        edgeVertecies.Add(6, (cube[7].GetPosition() + cube[6].GetPosition()) / 2);
-        edgeVertecies.Add(7, (cube[6].GetPosition() + cube[4].GetPosition()) / 2);
-        edgeVertecies.Add(8, (cube[0].GetPosition() + cube[4].GetPosition()) / 2);
-        edgeVertecies.Add(9, (cube[1].GetPosition() + cube[5].GetPosition()) / 2);
-        edgeVertecies.Add(10, (cube[3].GetPosition() + cube[7].GetPosition()) / 2);
-        edgeVertecies.Add(11, (cube[2].GetPosition() + cube[6].GetPosition()) / 2);
+        List<Vector3> edgeVertecies = new List<Vector3>();
+        edgeVertecies.Add((cube[0].GetPosition() + cube[1].GetPosition()) / 2);
+        edgeVertecies.Add((cube[1].GetPosition() + cube[3].GetPosition()) / 2);
+        edgeVertecies.Add((cube[3].GetPosition() + cube[2].GetPosition()) / 2);
+        edgeVertecies.Add((cube[2].GetPosition() + cube[0].GetPosition()) / 2);
+        edgeVertecies.Add((cube[4].GetPosition() + cube[5].GetPosition()) / 2);
+        edgeVertecies.Add((cube[5].GetPosition() + cube[7].GetPosition()) / 2);
+        edgeVertecies.Add((cube[7].GetPosition() + cube[6].GetPosition()) / 2);
+        edgeVertecies.Add((cube[6].GetPosition() + cube[4].GetPosition()) / 2);
+        edgeVertecies.Add((cube[0].GetPosition() + cube[4].GetPosition()) / 2);
+        edgeVertecies.Add((cube[1].GetPosition() + cube[5].GetPosition()) / 2);
+        edgeVertecies.Add((cube[3].GetPosition() + cube[7].GetPosition()) / 2);
+        edgeVertecies.Add((cube[2].GetPosition() + cube[6].GetPosition()) / 2);
 
         int[] triTable = MC_Edges.triangleTable[cubeIndex];
         foreach (int edgeIndex in triTable)
         {
             // Add vertecies
             if (edgeIndex == -1){return;}
-            if(!vertecies.ContainsValue(edgeVertecies[edgeIndex]))
+            if(!vertecies.Contains(edgeVertecies[edgeIndex]))
             {
-                vertecies.Add(vertecies.Keys.Count , edgeVertecies[edgeIndex] + transform.position);
+                vertecies.Add(edgeVertecies[edgeIndex]); // + transform.position
             }
             // Add triangles
-            foreach (int key in vertecies.Keys)
+            for(int i = 0; i < vertecies.Count; i++) 
             {
-                if (vertecies[key] == edgeVertecies[edgeIndex] + transform.position)
+                if(vertecies[i] == edgeVertecies[edgeIndex]) // + transform.position
                 {
-                    triang.Add(triang.Keys.Count, key);
+                    triang.Add(i);
                     break;
                 }
             }
@@ -169,7 +220,7 @@ public class MC_Chunk : MonoBehaviour
 
     void OnDrawGizmos()
     {
-        if(!_Debug){return;}
+        if(!_Debug || _vertecies == null){return;}
         foreach(MC_Vertex vertex in _vertecies)
         {
             Gizmos.color = Color.red;
@@ -179,6 +230,11 @@ public class MC_Chunk : MonoBehaviour
             }
             Gizmos.DrawSphere(vertex.GetPosition() + transform.position, (float)0.1);
         }
+    }
+
+    void OnDestroy()
+    {
+        EventManager.current.OctreeDestroyed(this);
     }
 
 }
