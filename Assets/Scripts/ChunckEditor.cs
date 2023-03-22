@@ -13,7 +13,7 @@ public class ChunckEditor : Editor
         MC_Octree chunk = (MC_Octree)target;
         if(GUILayout.Button("Set vertecie"))
         {
-            chunk.setVertexIsOnSurface();
+          //  chunk.setVertexIsOnSurface();
         }
     }
 }

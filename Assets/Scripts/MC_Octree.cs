@@ -5,9 +5,6 @@ using System;
 
 public class MC_Octree : MonoBehaviour
 {
-    [SerializeField] public bool _Debug = false;
-    [SerializeField] public Vector3Int _index = Vector3Int.zero;
-    [SerializeField] public bool _onSur = true;
     private Material _mat;
     private Planet _planet;
     private MeshFilter _meshFilter;
@@ -21,8 +18,9 @@ public class MC_Octree : MonoBehaviour
     private Vector3 _ratioVec;
     private MC_Vertex[,,] _vertecies;
 
-    private bool isDivided = false;
+    private bool _isDivided = false;
     private MC_Octree[] _chunks = new MC_Octree[8];
+    //private MC_Octree[] _neighbours = new MC_Octree[6]; // bottom, top, left, right, front, back
 
     public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet)
     {
@@ -45,7 +43,7 @@ public class MC_Octree : MonoBehaviour
 
     public void divide()
     {
-        if(!isDivided)
+        if(!_isDivided)
         {
             for (int i = 0; i < 8; i++) {
                 GameObject chunkObj = new GameObject("Chunk_"+i);
@@ -54,7 +52,20 @@ public class MC_Octree : MonoBehaviour
                 chunk.initiate((transform.position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet);
                 _chunks[i] = chunk;
             }
-            isDivided = true;
+            // for (int i = 0; i < 8; i++) {
+            //     MC_Octree[] neighbours = new MC_Octree[6];
+            //     for (int j = 0; j < 6; j++) {
+            //         int neighbourIndex = Helpers.Neighbours[i,j];
+            //         if (neighbourIndex > 7) {
+            //             neighbours[j] = _neighbours[neighbourIndex-8];
+            //         } else {
+            //             neighbours[j] = _chunks[neighbourIndex];
+            //         }
+            //     }
+            //     _chunks[i].setNeighbours(neighbours);
+            //     //crackPatch();
+            // }
+            _isDivided = true;
             _meshRenderer.enabled = false;
             _meshCollider.enabled = false;
         }
@@ -62,15 +73,50 @@ public class MC_Octree : MonoBehaviour
 
     public void merge()
     {
-        if(isDivided)
+        if(_isDivided)
         {
             for (int i = 0; i < 8; i++) {
                 Destroy(_chunks[i].gameObject);
             }
-            isDivided = false;
+            _isDivided = false;
             _meshRenderer.enabled = true;
             _meshCollider.enabled = true;
         }
+    }
+
+    // Assumption: neighbouring octrees can be max 1 level apart
+    // public void crackPatch()
+    // {
+    //     GameObject crackPatch = new GameObject("CrackPatch");
+    //     crackPatch.transform.parent = transform;
+    //     for (int i = 0; i < 6; i++) { // bottom, top, left, right, front, back
+    //         if (_neighbours[i] != null && _neighbours[i].getSize() > _size.x)
+    //         {
+    //             // Needs patching
+    //             Debug.Log("Patching "+i);
+    //             for (int x = 1; x < _resolution.x+1; x++)
+    //             {
+    //                 for (int y = 1; y < _resolution.y+1; y++)
+    //                 {
+    //                     for (int z = 1; z < _resolution.z+1; z++)
+    //                     {
+    //                         Vector3 tmpPos = new Vector3(_ratioVec.x*(x-_resolution.x/2), _ratioVec.y*(y-_resolution.y/2), _ratioVec.z*(z-_resolution.z/2));
+    //                         _vertecies[x,y,z] = new MC_Vertex(tmpPos, _planet.calcVert(tmpPos + transform.position));
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    public MC_Octree[] getChunks()
+    {
+        return _chunks;
+    }
+
+    public void setNeighbours(MC_Octree[] neighbours)
+    {
+        _neighbours = neighbours; 
     }
 
     private void Awake()
@@ -86,7 +132,6 @@ public class MC_Octree : MonoBehaviour
         _meshCollider.sharedMesh = _mesh;
     }
 
-// TODO only add vertecies that are on the surface
     private void generateVertecies()
     {
         for (int x = 0; x < _resolution.x+1; x++)
@@ -104,24 +149,12 @@ public class MC_Octree : MonoBehaviour
 
     public bool getIsDivided()
     {
-        return isDivided;
+        return _isDivided;
     }
 
     public float getSize()
     {
         return _size.x;
-    }
-
-    public void setVertexIsOnSurface(int x = -1, int y = -1, int z = -1, bool isOnSurface = true)
-    {
-        Vector3Int index = new Vector3Int(x, y, z);
-        if(index.x == -1)
-        {
-            index = _index;
-            isOnSurface = _onSur;
-        }
-        _vertecies[index.x, index.y, index.z].SetIsOnSurface(isOnSurface);
-        generateMesh();
     }
 
     private void generateMesh() {
@@ -150,6 +183,8 @@ public class MC_Octree : MonoBehaviour
         _mesh.RecalculateBounds();
         _mesh.Optimize();
         _meshCollider.sharedMesh = _mesh;
+
+        _vertecies = null;
     }
 
 // TODO always calc 4 cubes at once to share edgeverts (one chunc is atleas 2x2x2 cubes)
@@ -215,20 +250,6 @@ public class MC_Octree : MonoBehaviour
                     break;
                 }
             }
-        }
-    }
-
-    void OnDrawGizmos()
-    {
-        if(!_Debug || _vertecies == null){return;}
-        foreach(MC_Vertex vertex in _vertecies)
-        {
-            Gizmos.color = Color.red;
-            if(vertex.GetIsOnSurface())
-            {
-                Gizmos.color = Color.green;
-            }
-            Gizmos.DrawSphere(vertex.GetPosition() + transform.position, (float)0.1);
         }
     }
 

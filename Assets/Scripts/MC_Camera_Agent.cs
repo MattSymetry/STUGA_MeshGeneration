@@ -21,13 +21,11 @@ public class MC_Camera_Agent : MonoBehaviour
         {
             if (Vector3.Distance(octree.transform.position, transform.position) < octree.getSize() && !octree.getIsDivided())
             {
-                Debug.Log("Divide");
                 octree.divide();
                 break;
             }
             else if (Vector3.Distance(octree.transform.position, transform.position) > octree.getSize() && octree.getIsDivided())
             {
-                Debug.Log("Merge");
                 octree.merge();
                 break;
             }
