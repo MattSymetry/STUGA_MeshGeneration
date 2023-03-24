@@ -5,8 +5,9 @@ using System;
 
 public class MC_Camera_Agent : MonoBehaviour
 {
-    [SerializeField] private float _devideDistance = 20f;
     private List<MC_Octree> _octrees = new List<MC_Octree>();
+    private float currOctreeSize = 0f;
+    private float currOctreeDistance = 0f;
 
 
     void Start()
@@ -17,17 +18,22 @@ public class MC_Camera_Agent : MonoBehaviour
 
     void Update()
     {
+        checkOctrees();
+    }
+
+    private void checkOctrees() 
+    {
         foreach (MC_Octree octree in _octrees)
         {
-            if (Vector3.Distance(octree.transform.position, transform.position) < octree.getSize() && !octree.getIsDivided())
+            currOctreeSize = octree.getSize();
+            currOctreeDistance = Vector3.Distance(octree.transform.position, transform.position);
+            if (currOctreeSize/2 > Helpers.minChunkSize && currOctreeDistance < currOctreeSize && !octree.getIsDivided())
             {
-                Debug.Log("Divide");
                 octree.divide();
                 break;
             }
-            else if (Vector3.Distance(octree.transform.position, transform.position) > octree.getSize() && octree.getIsDivided())
+            else if (currOctreeDistance >  currOctreeSize && octree.getIsDivided())
             {
-                Debug.Log("Merge");
                 octree.merge();
                 break;
             }

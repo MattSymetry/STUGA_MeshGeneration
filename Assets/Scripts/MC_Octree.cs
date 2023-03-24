@@ -3,11 +3,28 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+struct Triangle {
+    public Vector3 a;
+    public Vector3 b;
+    public Vector3 c;
+
+    public Vector3 this [int i] 
+    {
+        get {
+            switch (i) {
+                case 0:
+                    return a;
+                case 1:
+                    return b;
+                default:
+                    return c;
+            }
+        }
+    }
+}
+
 public class MC_Octree : MonoBehaviour
 {
-    [SerializeField] public bool _Debug = false;
-    [SerializeField] public Vector3Int _index = Vector3Int.zero;
-    [SerializeField] public bool _onSur = true;
     private Material _mat;
     private Planet _planet;
     private MeshFilter _meshFilter;
@@ -19,18 +36,23 @@ public class MC_Octree : MonoBehaviour
     private Vector3 _size;
     private Vector3Int _resolution;
     private Vector3 _ratioVec;
-    private MC_Vertex[,,] _vertecies;
+    private MC_Vertex[,,] _vertices;
+    private Vector4[] _vert;
 
     private bool isDivided = false;
     private MC_Octree[] _chunks = new MC_Octree[8];
 
-    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet)
+    private ComputeShader _computeShader;
+    private bool shader = true;
+
+    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader)
     {
         _position = position;
         _size = size;
         _resolution = resolution;
         _ratioVec = new Vector3(_size.x / _resolution.x, _size.y / _resolution.y, _size.z / _resolution.z);
-        _vertecies = new MC_Vertex[(_resolution.x+1),(_resolution.y+1),(_resolution.z+1)];
+        _vertices = new MC_Vertex[(_resolution.x+1),(_resolution.y+1),(_resolution.z+1)];
+        _vert = new Vector4[(_resolution.x+1)*(_resolution.y+1)*(_resolution.z+1)];
         _mat = mat;
         _meshRenderer.material = _mat;
         _planet = planet;
@@ -39,7 +61,9 @@ public class MC_Octree : MonoBehaviour
 
         EventManager.current.OctreeCreated(this);
 
-        generateVertecies();
+        _computeShader = shader;
+
+        generateVertices();
         generateMesh();
     }
 
@@ -51,7 +75,7 @@ public class MC_Octree : MonoBehaviour
                 GameObject chunkObj = new GameObject("Chunk_"+i);
                 chunkObj.transform.parent = transform;
                 MC_Octree chunk = chunkObj.AddComponent<MC_Octree>();
-                chunk.initiate((transform.position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet);
+                chunk.initiate((transform.position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader);
                 _chunks[i] = chunk;
             }
             isDivided = true;
@@ -78,6 +102,8 @@ public class MC_Octree : MonoBehaviour
         _meshFilter = transform.gameObject.AddComponent<MeshFilter>();
         _meshRenderer = transform.gameObject.AddComponent<MeshRenderer>();
         _meshCollider = transform.gameObject.AddComponent<MeshCollider>();
+
+        
        
         _mesh = new Mesh {
 			name = "Procedural Mesh"
@@ -86,8 +112,8 @@ public class MC_Octree : MonoBehaviour
         _meshCollider.sharedMesh = _mesh;
     }
 
-// TODO only add vertecies that are on the surface
-    private void generateVertecies()
+// TODO only add vertices that are on the surface
+    private void generateVertices()
     {
         for (int x = 0; x < _resolution.x+1; x++)
         {
@@ -96,7 +122,8 @@ public class MC_Octree : MonoBehaviour
                 for (int z = 0; z < _resolution.z+1; z++)
                 {
                     Vector3 tmpPos = new Vector3(_ratioVec.x*(x-_resolution.x/2), _ratioVec.y*(y-_resolution.y/2), _ratioVec.z*(z-_resolution.z/2));
-                    _vertecies[x,y,z] = new MC_Vertex(tmpPos, _planet.calcVert(tmpPos + transform.position));
+                    _vertices[x,y,z] = new MC_Vertex(tmpPos, _planet.calcVert(tmpPos + transform.position));
+                    _vert[x + y * (_resolution.x+1) + z * (_resolution.x+1) * (_resolution.y+1)] = new Vector4(tmpPos.x, tmpPos.y, tmpPos.z, _planet.calcVertF(tmpPos + transform.position));
                 }
             }
         }
@@ -112,21 +139,13 @@ public class MC_Octree : MonoBehaviour
         return _size.x;
     }
 
-    public void setVertexIsOnSurface(int x = -1, int y = -1, int z = -1, bool isOnSurface = true)
-    {
-        Vector3Int index = new Vector3Int(x, y, z);
-        if(index.x == -1)
-        {
-            index = _index;
-            isOnSurface = _onSur;
-        }
-        _vertecies[index.x, index.y, index.z].SetIsOnSurface(isOnSurface);
-        generateMesh();
-    }
-
     private void generateMesh() {
         _mesh.Clear();
-        List<Vector3> vertecies = new List<Vector3>();
+        if (shader){
+            marchCubeCS();
+            return;
+        }
+        List<Vector3> vertices = new List<Vector3>();
         List<int> triang = new List<int>();
         for(int x = 0; x < _resolution.x; x++)
         {
@@ -134,17 +153,17 @@ public class MC_Octree : MonoBehaviour
             {
                 for(int z = 0; z < _resolution.z; z++)
                 {
-                    marchCube(new Vector3Int(x, y, z), ref vertecies, ref triang);
+                    marchCube(new Vector3Int(x, y, z), ref vertices, ref triang);
                 }
             }
         }
         
-        Vector3[] vertices = new Vector3[vertecies.Count];
-        vertecies.CopyTo(vertices, 0);
+        Vector3[] verticess = new Vector3[vertices.Count];
+        vertices.CopyTo(verticess, 0);
         int[] triangles = new int[triang.Count];
         triang.CopyTo(triangles, 0);
 
-        _mesh.vertices = vertices;
+        _mesh.vertices = verticess;
         _mesh.triangles = triangles;
         _mesh.RecalculateNormals();
         _mesh.RecalculateBounds();
@@ -153,17 +172,17 @@ public class MC_Octree : MonoBehaviour
     }
 
 // TODO always calc 4 cubes at once to share edgeverts (one chunc is atleas 2x2x2 cubes)
-    private void marchCube(Vector3Int index, ref List<Vector3> vertecies, ref List<int> triang)
+    private void marchCube(Vector3Int index, ref List<Vector3> vertices, ref List<int> triang)
     {
         MC_Vertex[] cube = new MC_Vertex[8];
-        cube[0] = _vertecies[index.x, index.y, index.z];
-        cube[1] = _vertecies[index.x+1, index.y, index.z];
-        cube[2] = _vertecies[index.x, index.y+1, index.z];
-        cube[3] = _vertecies[index.x+1, index.y+1, index.z];
-        cube[4] = _vertecies[index.x, index.y, index.z+1];
-        cube[5] = _vertecies[index.x+1, index.y, index.z+1];
-        cube[6] = _vertecies[index.x, index.y+1, index.z+1];
-        cube[7] = _vertecies[index.x+1, index.y+1, index.z+1];
+        cube[0] = _vertices[index.x, index.y, index.z];
+        cube[1] = _vertices[index.x+1, index.y, index.z];
+        cube[2] = _vertices[index.x, index.y+1, index.z];
+        cube[3] = _vertices[index.x+1, index.y+1, index.z];
+        cube[4] = _vertices[index.x, index.y, index.z+1];
+        cube[5] = _vertices[index.x+1, index.y, index.z+1];
+        cube[6] = _vertices[index.x, index.y+1, index.z+1];
+        cube[7] = _vertices[index.x+1, index.y+1, index.z+1];
         int cubeIndex = 0;
 
         // Calculate cube index
@@ -200,16 +219,16 @@ public class MC_Octree : MonoBehaviour
         int[] triTable = MC_Edges.triangleTable[cubeIndex];
         foreach (int edgeIndex in triTable)
         {
-            // Add vertecies
+            // Add vertices
             if (edgeIndex == -1){return;}
-            if(!vertecies.Contains(edgeVertecies[edgeIndex]))
+            if(!vertices.Contains(edgeVertecies[edgeIndex]))
             {
-                vertecies.Add(edgeVertecies[edgeIndex]); // + transform.position
+                vertices.Add(edgeVertecies[edgeIndex]); // + transform.position
             }
             // Add triangles
-            for(int i = 0; i < vertecies.Count; i++) 
+            for(int i = 0; i < vertices.Count; i++) 
             {
-                if(vertecies[i] == edgeVertecies[edgeIndex]) // + transform.position
+                if(vertices[i] == edgeVertecies[edgeIndex]) // + transform.position
                 {
                     triang.Add(i);
                     break;
@@ -218,18 +237,71 @@ public class MC_Octree : MonoBehaviour
         }
     }
 
-    void OnDrawGizmos()
+    private void marchCubeCS()
     {
-        if(!_Debug || _vertecies == null){return;}
-        foreach(MC_Vertex vertex in _vertecies)
-        {
-            Gizmos.color = Color.red;
-            if(vertex.GetIsOnSurface())
-            {
-                Gizmos.color = Color.green;
+        // _vert = new Vector4[8];
+        // for(int x = 0; x < 2; x++)
+        // {
+        //     for(int y = 0; y < 2; y++)
+        //     {
+        //         for(int z = 0; z < 2; z++)
+        //         {
+        //             _vert[z * 2 * 2 + y * 2 + x] = new Vector4(x, y, z, 0);
+        //         }
+        //     }
+        // }
+        // _vert[0].w = 1;
+        // _vert = new Vector4[] {
+        //     new Vector4(0,0,0,1),
+        //     new Vector4(10,0,0,0),
+        //     new Vector4(0,10,0,0),
+        //     new Vector4(10,10,0,0),
+        //     new Vector4(0,0,10,0),
+        //     new Vector4(10,0,10,0),
+        //     new Vector4(0,10,10,0),
+        //     new Vector4(10,10,10,0)
+        // };
+        ComputeBuffer triangleBuffer = new ComputeBuffer(_vert.Length*5, sizeof (float)*3*3, ComputeBufferType.Append);
+        ComputeBuffer pointsBuffer = new ComputeBuffer(_vert.Length, sizeof (float) * 4);
+        ComputeBuffer triCountBuffer = new ComputeBuffer (1, sizeof (int), ComputeBufferType.Raw);
+        int threads = Mathf.CeilToInt ((_resolution.x+1) / (float) 8);
+        pointsBuffer.SetData(_vert);
+
+        triangleBuffer.SetCounterValue(0);
+        _computeShader.SetBuffer(0, "points", pointsBuffer);
+        _computeShader.SetBuffer(0, "triangles", triangleBuffer);
+        _computeShader.SetInt("resolution", _resolution.x+1);
+        _computeShader.Dispatch(0, threads,threads,threads);
+
+        ComputeBuffer.CopyCount (triangleBuffer, triCountBuffer, 0);
+        int[] triCountArray = { 0 };
+        triCountBuffer.GetData (triCountArray);
+        int numTris = triCountArray[0];
+        //Debug.Log("numTris: " + numTris);
+
+        Triangle[] trisCS = new Triangle[numTris];
+        triangleBuffer.GetData (trisCS, 0, 0, numTris);
+
+        Vector3[] verts = new Vector3[numTris * 3];
+        int[] tris = new int[numTris * 3];
+
+        for (int i = 0; i < numTris; i++) {
+            for (int j = 0; j < 3; j++) {
+                tris[i * 3 + j] = i * 3 + j;
+                verts[i * 3 + j] = trisCS[i][j];
             }
-            Gizmos.DrawSphere(vertex.GetPosition() + transform.position, (float)0.1);
         }
+
+        _mesh.vertices = verts;
+        _mesh.triangles = tris;
+        _mesh.RecalculateNormals();
+        _mesh.RecalculateBounds();
+        _mesh.Optimize();
+        _meshCollider.sharedMesh = _mesh;
+
+        triangleBuffer.Release ();
+        pointsBuffer.Release ();
+        triCountBuffer.Release ();
     }
 
     void OnDestroy()

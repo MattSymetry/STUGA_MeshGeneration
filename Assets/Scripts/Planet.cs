@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class Planet : MonoBehaviour
 {
-    [SerializeField] bool _Debug = true;
     [SerializeField] Material _mat;
     [SerializeField] private Vector3 _size = new Vector3(100,100,100);
     [SerializeField] private float _radius = 10f;
+    [SerializeField] private ComputeShader _computeShader;
     private float _mass;
     private float _gravity;
     private Vector3 _position;
@@ -19,7 +19,7 @@ public class Planet : MonoBehaviour
     void Start()
     {
         _octree = gameObject.AddComponent<MC_Octree>();
-        _octree.initiate(_position, _size, Helpers.getChunckRes(_size), _mat, this);
+        _octree.initiate(_position, _size, Helpers.getChunckRes(_size), _mat, this, _computeShader);
     }
 
     public float getRadius()
@@ -37,5 +37,11 @@ public class Planet : MonoBehaviour
     {
         float dist = Vector3.Distance(pos, getPosition());
         return dist < getRadius();
+    }
+
+    public float calcVertF(Vector3 pos)
+    {
+        float dist = Vector3.Distance(pos, getPosition());
+        return (dist < getRadius()) ? 1f : 0f;
     }
 }
