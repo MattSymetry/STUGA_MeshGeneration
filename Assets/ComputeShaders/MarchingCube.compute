@@ -16,7 +16,10 @@ int getIndex(int x, int y, int z) {
 }
 
 float3 interpolate(float4 a, float4 b) {
-    return ((a.xyz + b.xyz) / 2);
+    float3 p = a.xyz;
+    float3 q = b.xyz;
+    float t = a.w + b.w;
+    return ((p+q)/2) + t;
 }
 
 [numthreads(8,8,8)]
@@ -39,35 +42,23 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     int cubeIndex = 0;
     // Calculate cube index
-    if(cube[0].w > 0){cubeIndex += 1;}
-    if(cube[1].w > 0){cubeIndex += 2;}
-    if(cube[2].w > 0){cubeIndex += 4;}
-    if(cube[3].w > 0){cubeIndex += 8;}
-    if(cube[4].w > 0){cubeIndex += 16;}
-    if(cube[5].w > 0){cubeIndex += 32;}
-    if(cube[6].w > 0){cubeIndex += 64;}
-    if(cube[7].w > 0){cubeIndex += 128;}
+    if(cube[0].w != 0){cubeIndex += 1;}
+    if(cube[1].w != 0){cubeIndex += 2;}
+    if(cube[2].w != 0){cubeIndex += 4;}
+    if(cube[3].w != 0){cubeIndex += 8;}
+    if(cube[4].w != 0){cubeIndex += 16;}
+    if(cube[5].w != 0){cubeIndex += 32;}
+    if(cube[6].w != 0){cubeIndex += 64;}
+    if(cube[7].w != 0){cubeIndex += 128;}
 
-    float3 edges[12] = {
-        interpolate(cube[0], cube[1]), //5,0,0
-        interpolate(cube[1], cube[3]),
-        interpolate(cube[3], cube[2]),
-        interpolate(cube[2], cube[0]),//0,5,0
-        interpolate(cube[4], cube[5]),
-        interpolate(cube[5], cube[7]),
-        interpolate(cube[7], cube[6]),
-        interpolate(cube[6], cube[4]),
-        interpolate(cube[0], cube[4]),//0,0,5
-        interpolate(cube[1], cube[5]),
-        interpolate(cube[3], cube[7]),
-        interpolate(cube[2], cube[6])
-    };
+    if (cubeIndex != 0 && cubeIndex != 255) {
 
-    for (int i = 0; triangleTable[cubeIndex][i] != -1; i += 3) {
-        Triangle tri;
-        tri.a = edges[triangleTable[cubeIndex][i]];
-        tri.b = edges[triangleTable[cubeIndex][i+1]];
-        tri.c = edges[triangleTable[cubeIndex][i+2]];
-        triangles.Append(tri);
+        for (int i = 0; triangleTable[cubeIndex][i] != -1; i += 3) {
+            Triangle tri;
+            tri.a = interpolate(cube[edgesTable[triangleTable[cubeIndex][i]][0]],cube[edgesTable[triangleTable[cubeIndex][i]][1]]);
+            tri.b = interpolate(cube[edgesTable[triangleTable[cubeIndex][i+1]][0]],cube[edgesTable[triangleTable[cubeIndex][i+1]][1]]);
+            tri.c = interpolate(cube[edgesTable[triangleTable[cubeIndex][i+2]][0]],cube[edgesTable[triangleTable[cubeIndex][i+2]][1]]);
+            triangles.Append(tri);
+        }
     }
 }

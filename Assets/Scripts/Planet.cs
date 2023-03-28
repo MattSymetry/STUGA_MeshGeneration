@@ -33,15 +33,18 @@ public class Planet : MonoBehaviour
         return _position;
     }
 
-    public bool calcVert(Vector3 pos)
+    public float calcVert(Vector3 pos, float cubeSize)
     {
         float dist = Vector3.Distance(pos, getPosition());
-        return dist < getRadius();
-    }
-
-    public float calcVertF(Vector3 pos)
-    {
-        float dist = Vector3.Distance(pos, getPosition());
-        return (dist < getRadius()) ? 1f : 0f;
+        float offset = getRadius() - dist;
+        return offset;
+        if ((offset > -cubeSize && offset < 0f) || (offset < cubeSize && offset > 0f))
+        {
+            Debug.Log("offset: " + offset/cubeSize + " cubeSize: " + cubeSize);
+            return offset/cubeSize;
+        }
+        else {
+            return 0f;
+        }
     }
 }

@@ -25,6 +25,6 @@ public static class Helpers
     
     public static Vector3Int getChunckRes (Vector3 size)
     {
-        return new Vector3Int((int)(size.x / 4), (int)(size.y / 4), (int)(size.z / 4));
+        return new Vector3Int((int)(size.x / 8), (int)(size.y / 8), (int)(size.z / 8));
     }
 }
