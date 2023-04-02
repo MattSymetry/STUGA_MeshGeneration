@@ -1,0 +1,34 @@
+#pragma kernel CSMain
+
+RWTexture3D<float2> renderTexture;
+int textureSize;
+float planetSize;
+
+// float calculateDensity(int3 cell) {
+// 	float3 worldPos = (cell / float(textureSize-1.0) - 0.5f) * planetSize;
+
+// 	float halfS = planetSize / 2;
+// 	float maxD = length(float3(halfS,halfS,halfS));
+
+// 	float fudge = 1;
+
+// 	float density = length(worldPos) / (maxD + fudge) - 0.5;
+
+// 	return density;
+// }
+
+[numthreads(8,8,8)]
+void CSMain (int3 id : SV_DispatchThreadID)
+{
+	float3 worldPos = ((id / float(textureSize-1.0)) - 0.5) * float(textureSize-1.0);
+    float dstFromCenter = length(worldPos);
+    float mapValue = dstFromCenter - planetSize;
+
+    float g = 0;
+    if (id.x > textureSize/2) {
+        g = 1;
+    }
+
+	renderTexture[id] = float2(mapValue, g);
+
+}

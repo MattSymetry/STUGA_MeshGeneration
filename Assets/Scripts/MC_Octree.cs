@@ -1,7 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.Rendering;
+using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 using System;
+
+struct Vertex {
+    public Vector3 position;
+    public Vector3 normal;
+    public int2 id;
+}
 
 struct Triangle {
     public Vector3 a;
@@ -32,48 +41,47 @@ public class MC_Octree : MonoBehaviour
     private MeshCollider _meshCollider;
     
     private Mesh _mesh;
-    private Vector3 _position;
+    [SerializeField]private Vector3 _position;
     private Vector3 _size;
     private Vector3Int _resolution;
-    private Vector3 _ratioVec;
-    private Vector4[] _vert;
 
     private bool isDivided = false;
     private MC_Octree[] _chunks = new MC_Octree[8];
+    private int hirarchyLevel = 0;
 
     private ComputeShader _computeShader;
     private int threadCount = 8;
+    private bool useFlatShading = false;
 
-    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader)
+    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0)
     {
         _position = position;
         _size = size;
         _resolution = resolution;
-        _ratioVec = new Vector3(_size.x / _resolution.x, _size.y / _resolution.y, _size.z / _resolution.z);
-        _vert = new Vector4[(_resolution.x+1)*(_resolution.y+1)*(_resolution.z+1)];
         _mat = mat;
         _meshRenderer.material = _mat;
         _planet = planet;
+        this.hirarchyLevel = hirarchyLevel;
 
-        transform.position = _position;
+        //transform.position = _position;
+        transform.localPosition = Vector3.zero;
 
         EventManager.current.OctreeCreated(this);
 
         _computeShader = shader;
 
-        generateVertices();
         generateMesh();
     }
 
     public void divide()
     {
-        if(!isDivided)
+        if(!isDivided && ((_size.x/2) / _resolution.x) >= 1)
         {
             for (int i = 0; i < 8; i++) {
                 GameObject chunkObj = new GameObject("Chunk_"+i);
                 chunkObj.transform.parent = transform;
                 MC_Octree chunk = chunkObj.AddComponent<MC_Octree>();
-                chunk.initiate((transform.position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader);
+                chunk.initiate((transform.position + _position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1);
                 _chunks[i] = chunk;
             }
             isDivided = true;
@@ -112,22 +120,6 @@ public class MC_Octree : MonoBehaviour
         _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
     }
 
-// TODO only add vertices that are on the surface
-    private void generateVertices()
-    {
-        for (int x = 0; x < _resolution.x+1; x++)
-        {
-            for (int y = 0; y < _resolution.y+1; y++)
-            {
-                for (int z = 0; z < _resolution.z+1; z++)
-                {
-                    Vector3 tmpPos = new Vector3(_ratioVec.x*(x-_resolution.x/2), _ratioVec.y*(y-_resolution.y/2), _ratioVec.z*(z-_resolution.z/2));
-                    _vert[x + y * (_resolution.x+1) + z * (_resolution.x+1) * (_resolution.y+1)] = new Vector4(tmpPos.x, tmpPos.y, tmpPos.z, _planet.calcVert(tmpPos + transform.position, _size.x/_resolution.x));
-                }
-            }
-        }
-    }
-
     public bool getIsDivided()
     {
         return isDivided;
@@ -147,48 +139,96 @@ public class MC_Octree : MonoBehaviour
         Debug.Log("CS: "+watch.ElapsedMilliseconds);
     }
 
-    private void marchCubes()
+    private async void marchCubes()
     {
-        ComputeBuffer triangleBuffer = new ComputeBuffer(_vert.Length*5, sizeof (float)*3*3, ComputeBufferType.Append);
-        ComputeBuffer pointsBuffer = new ComputeBuffer(_vert.Length, sizeof (float) * 4);
+        int numPoints = _resolution.x * _resolution.y * _resolution.z;
+		int numVoxelsPerAxis = _resolution.x - 1;
+		int numVoxels = numVoxelsPerAxis * numVoxelsPerAxis * numVoxelsPerAxis;
+		int maxTriangleCount = numVoxels * 5;
+		int maxVertexCount = maxTriangleCount * 3;
+
+        ComputeBuffer triangleBuffer = new ComputeBuffer(maxVertexCount, System.Runtime.InteropServices.Marshal.SizeOf(typeof(Vertex)), ComputeBufferType.Append);
         ComputeBuffer triCountBuffer = new ComputeBuffer (1, sizeof (int), ComputeBufferType.Raw);
+        Vertex[] vertexDataArray = new Vertex[maxVertexCount];
         int threads = Mathf.CeilToInt ((_resolution.x+1) / (float) threadCount);
-        pointsBuffer.SetData(_vert);
 
-        triangleBuffer.SetCounterValue(0);
-        _computeShader.SetBuffer(0, "points", pointsBuffer);
-        _computeShader.SetBuffer(0, "triangles", triangleBuffer);
-        _computeShader.SetInt("resolution", _resolution.x+1);
-        _computeShader.Dispatch(0, threads,threads,threads);
+        //Debug.Log("stepSize : "+(_size.x/(_resolution.x))+" pos: "+_position+" size: "+_size);
 
-        ComputeBuffer.CopyCount (triangleBuffer, triCountBuffer, 0);
-        int[] triCountArray = { 0 };
-        triCountBuffer.GetData (triCountArray);
-        int numTris = triCountArray[0];
+        _computeShader.SetTexture(0, "sampleTexture", _planet.getTexture());
+        _computeShader.SetInt("textureSize", _planet.getTextureSize());
+		_computeShader.SetInt("resolution", _resolution.x+1);
+        _computeShader.SetFloat("stepSize", (_size.x/(_resolution.x)));
+		triangleBuffer.SetCounterValue(0);
+		_computeShader.SetBuffer(0, "triangles", triangleBuffer);
+		_computeShader.SetVector("chunkPos", _position);
+        _computeShader.SetVector("chunkSize", _size);
+        _computeShader.SetInt("hirarchyLevel", hirarchyLevel);
 
-        Triangle[] trisCS = new Triangle[numTris];
-        triangleBuffer.GetData (trisCS, 0, 0, numTris);
+		_computeShader.Dispatch(0, threads,threads,threads);
 
-        Vector3[] verts = new Vector3[numTris * 3];
-        int[] tris = new int[numTris * 3];
 
-        for (int i = 0; i < numTris; i++) {
-            for (int j = 0; j < 3; j++) {
-                tris[i * 3 + j] = i * 3 + j;
-                verts[i * 3 + j] = trisCS[i][j];
-            }
-        }
+        int[] vertexCountData = new int[1];
+		triCountBuffer.SetData(vertexCountData);
+		ComputeBuffer.CopyCount(triangleBuffer, triCountBuffer, 0);
 
-        _mesh.vertices = verts;
-        _mesh.triangles = tris;
-        _mesh.RecalculateNormals();
+		triCountBuffer.GetData(vertexCountData);
+
+		int numVertices = vertexCountData[0] * 3;
+
+		triangleBuffer.GetData(vertexDataArray, 0, 0, numVertices);
+
+        // Fetch data
+        Dictionary<int2, int> vertexIndexMap = new Dictionary<int2, int>();
+		List<Vector3> processedVertices = new List<Vector3>();
+		List<Vector3> processedNormals = new List<Vector3>();
+		List<int> processedTriangles = new List<int>();
+
+        int triangleIndex = 0;
+
+        for (int i = 0; i < numVertices; i++)
+		{
+			Vertex data = vertexDataArray[i];
+
+			int sharedVertexIndex;
+			if (!useFlatShading && vertexIndexMap.TryGetValue(data.id, out sharedVertexIndex))
+			{
+				processedTriangles.Add(sharedVertexIndex);
+			}
+			else
+			{
+				if (!useFlatShading)
+				{
+					vertexIndexMap.Add(data.id, triangleIndex);
+				}
+				processedVertices.Add(data.position);
+				processedNormals.Add(data.normal);
+				processedTriangles.Add(triangleIndex);
+				triangleIndex++;
+			}
+		}
+
+        _mesh.SetVertices(processedVertices);
+		_mesh.SetTriangles(processedTriangles, 0, true);
+
+		if (useFlatShading)
+		{
+			_mesh.RecalculateNormals();
+		}
+		else
+		{
+			_mesh.SetNormals(processedNormals);
+		}
         _mesh.RecalculateBounds();
         _mesh.Optimize();
         _meshCollider.sharedMesh = _mesh;
 
         triangleBuffer.Release ();
-        pointsBuffer.Release ();
         triCountBuffer.Release ();
+    }
+
+    public Vector3 getAbsPosition()
+    {
+        return transform.position + _position;
     }
 
     void OnDestroy()

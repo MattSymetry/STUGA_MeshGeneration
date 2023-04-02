@@ -26,7 +26,7 @@ public class MC_Camera_Agent : MonoBehaviour
         foreach (MC_Octree octree in _octrees)
         {
             currOctreeSize = octree.getSize();
-            currOctreeDistance = Vector3.Distance(octree.transform.position, transform.position);
+            currOctreeDistance = Vector3.Distance(octree.getAbsPosition(), transform.position);
             if (currOctreeSize/2 > Helpers.minChunkSize && currOctreeDistance < currOctreeSize && !octree.getIsDivided())
             {
                 octree.divide();

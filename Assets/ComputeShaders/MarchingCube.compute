@@ -1,15 +1,26 @@
 #pragma kernel CSMain
 #include "Helper.compute"
 
+struct Vertex {
+	float3 position;
+	float3 normal;
+	int2 id;
+};
+
 struct Triangle {
-    float3 a;
-    float3 b;
-    float3 c;
+    Vertex a;
+	Vertex b;
+	Vertex c;
 };
 
 AppendStructuredBuffer<Triangle> triangles;
-RWStructuredBuffer<float4> points;
+RWTexture3D<float2> sampleTexture;
+int textureSize;
 int resolution;
+float3 chunkPos;
+float3 chunkSize;
+float stepSize;
+int hirarchyLevel;
 
 int getIndex(int x, int y, int z) {
     return z * resolution * resolution + y * resolution + x;
@@ -18,8 +29,63 @@ int getIndex(int x, int y, int z) {
 float3 interpolate(float4 a, float4 b) {
     float3 p = a.xyz;
     float3 q = b.xyz;
-    float t = a.w + b.w;
-    return ((p+q)/2) + t;
+    float t = (0-a.w)/(b.w-a.w);
+    return p + t * (q-p);
+}
+
+float sampleTextureValue(float3 pos) {
+	pos = max(0, min(int3(pos), textureSize));
+	return sampleTexture[int3(pos)].x;
+}
+
+float3 getWorldPos(float3 pos) {
+	return pos - textureSize/float(2);
+}
+
+float3 calculateNormal(int3 pos) {
+	int3 offsetX = int3(1, 0, 0);
+	int3 offsetY = int3(0, 1, 0);
+	int3 offsetZ = int3(0, 0, 1);
+
+	float dx = sampleTextureValue(pos + offsetX) - sampleTextureValue(pos - offsetX);
+	float dy = sampleTextureValue(pos + offsetY) - sampleTextureValue(pos - offsetY);
+	float dz = sampleTextureValue(pos + offsetZ) - sampleTextureValue(pos - offsetZ);
+
+	return normalize(float3(dx, dy, dz));
+}
+
+int indexFromCoord(int3 coord) {
+	coord = coord - int3(chunkPos);
+	return coord.z * resolution * resolution + coord.y * resolution + coord.x;
+}
+
+Vertex createVertex(float3 coordA, float3 coordB) {
+	
+	float3 posA = getWorldPos(coordA);
+	float3 posB = getWorldPos(coordB);
+	float densityA = sampleTextureValue(coordA);
+	float densityB = sampleTextureValue(coordB);
+
+	// Interpolate between the two corner points based on the density
+	float t = (0 - densityA) / (densityB - densityA);
+	float3 position = posA + t * (posB - posA);
+
+	// Normal:
+	float3 normalA = calculateNormal(coordA);
+	float3 normalB = calculateNormal(coordB);
+	float3 normal = normalize(normalA + t * (normalB - normalA));
+
+	// ID
+	int indexA = getIndex(coordA.x, coordA.y, coordA.z);
+	int indexB = getIndex(coordB.x, coordB.y, coordB.z);
+
+	// Create vertex
+	Vertex vertex;
+	vertex.position = position;
+	vertex.normal = normal;
+	vertex.id = int2(min(indexA, indexB), max(indexA, indexB));
+
+	return vertex;
 }
 
 [numthreads(8,8,8)]
@@ -29,36 +95,62 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float4 cube[8] = {
-        points[getIndex(id.x, id.y, id.z)],
-        points[getIndex(id.x+1, id.y, id.z)],
-        points[getIndex(id.x, id.y+1, id.z)],
-        points[getIndex(id.x+1, id.y+1, id.z)],
-        points[getIndex(id.x, id.y, id.z+1)],
-        points[getIndex(id.x+1, id.y, id.z+1)],
-        points[getIndex(id.x, id.y+1, id.z+1)],
-        points[getIndex(id.x+1, id.y+1, id.z+1)]
+    float3 pos = stepSize*id + chunkPos;
+    int tmpMultiplier = 0;
+    if (hirarchyLevel > 1) {
+        for (int i = 0; i < hirarchyLevel-2; i++) {
+            tmpMultiplier += pow(2, i);
+        }
+        pos += chunkSize * (0.5 + tmpMultiplier);
+    }
+    // if (hirarchyLevel == 2) {
+    //     pos += chunkSize * 0.5;
+    // }
+    // else if (hirarchyLevel == 3) {
+    //     pos += chunkSize * 1.5;
+    // }
+    // else if (hirarchyLevel == 4) {
+    //     pos += chunkSize * 3.5;
+    // }
+    // else if (hirarchyLevel == 5) {
+    //     pos += chunkSize * 7.5;
+    // }
+    // else if (hirarchyLevel == 6) {
+    //     pos += chunkSize * 15.5;
+    // }
+
+    float3 cube[8] = {
+        pos + float3(0,0,0),
+        pos + float3(stepSize,0,0),
+        pos + float3(0,stepSize,0),
+        pos + float3(stepSize,stepSize,0),
+        pos + float3(0,0,stepSize),
+        pos + float3(stepSize,0,stepSize),
+        pos + float3(0,stepSize,stepSize),
+        pos + float3(stepSize,stepSize,stepSize)
     };
 
     int cubeIndex = 0;
     // Calculate cube index
-    if(cube[0].w != 0){cubeIndex += 1;}
-    if(cube[1].w != 0){cubeIndex += 2;}
-    if(cube[2].w != 0){cubeIndex += 4;}
-    if(cube[3].w != 0){cubeIndex += 8;}
-    if(cube[4].w != 0){cubeIndex += 16;}
-    if(cube[5].w != 0){cubeIndex += 32;}
-    if(cube[6].w != 0){cubeIndex += 64;}
-    if(cube[7].w != 0){cubeIndex += 128;}
+    if(sampleTextureValue(cube[0]) < 0){cubeIndex += 1;}
+    if(sampleTextureValue(cube[1]) < 0){cubeIndex += 2;}
+    if(sampleTextureValue(cube[2]) < 0){cubeIndex += 4;}
+    if(sampleTextureValue(cube[3]) < 0){cubeIndex += 8;}
+    if(sampleTextureValue(cube[4]) < 0){cubeIndex += 16;}
+    if(sampleTextureValue(cube[5]) < 0){cubeIndex += 32;}
+    if(sampleTextureValue(cube[6]) < 0){cubeIndex += 64;}
+    if(sampleTextureValue(cube[7]) < 0){cubeIndex += 128;}
 
-    if (cubeIndex != 0 && cubeIndex != 255) {
+    for (int i = 0; triangleTable[cubeIndex][i] != -1; i += 3) {
 
-        for (int i = 0; triangleTable[cubeIndex][i] != -1; i += 3) {
-            Triangle tri;
-            tri.a = interpolate(cube[edgesTable[triangleTable[cubeIndex][i]][0]],cube[edgesTable[triangleTable[cubeIndex][i]][1]]);
-            tri.b = interpolate(cube[edgesTable[triangleTable[cubeIndex][i+1]][0]],cube[edgesTable[triangleTable[cubeIndex][i+1]][1]]);
-            tri.c = interpolate(cube[edgesTable[triangleTable[cubeIndex][i+2]][0]],cube[edgesTable[triangleTable[cubeIndex][i+2]][1]]);
-            triangles.Append(tri);
-        }
+        Vertex a = createVertex(cube[edgesTable[triangleTable[cubeIndex][i]][0]],cube[edgesTable[triangleTable[cubeIndex][i]][1]]);
+        Vertex b = createVertex(cube[edgesTable[triangleTable[cubeIndex][i+1]][0]],cube[edgesTable[triangleTable[cubeIndex][i+1]][1]]);
+        Vertex c = createVertex(cube[edgesTable[triangleTable[cubeIndex][i+2]][0]],cube[edgesTable[triangleTable[cubeIndex][i+2]][1]]);
+        
+        Triangle tri;
+        tri.a = a;
+        tri.b = b;
+        tri.c = c;
+        triangles.Append(tri);
     }
 }
