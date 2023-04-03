@@ -10,7 +10,7 @@ public class MC_Camera_Agent : MonoBehaviour
     private float currOctreeDistance = 0f;
 
 
-    void Start()
+    void Awake()
     {
         EventManager.current.onOctreeCreated += onOctreeCreated;
         EventManager.current.onOctreeDestroyed += onOctreeDestroyed;
@@ -27,12 +27,12 @@ public class MC_Camera_Agent : MonoBehaviour
         {
             currOctreeSize = octree.getSize();
             currOctreeDistance = Vector3.Distance(octree.getAbsPosition(), transform.position);
-            if (currOctreeSize/2 > Helpers.minChunkSize && currOctreeDistance < currOctreeSize && !octree.getIsDivided())
+            if (currOctreeDistance < currOctreeSize*2 && !octree.getIsDivided())
             {
                 octree.divide();
                 break;
             }
-            else if (currOctreeDistance >  currOctreeSize && octree.getIsDivided())
+            else if (currOctreeDistance > currOctreeSize*2 && octree.getIsDivided())
             {
                 octree.merge();
                 break;
