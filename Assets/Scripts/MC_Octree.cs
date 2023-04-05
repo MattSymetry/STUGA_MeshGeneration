@@ -297,6 +297,9 @@ public class MC_Octree : MonoBehaviour
         _mesh.Clear();
         _meshCollider.sharedMesh = null;
         _meshFilter.mesh = null;
+        if (vertexDataArray.IsCreated) vertexDataArray.Dispose();
+        if (triangleBuffer != null) triangleBuffer.Release ();
+        if (triCountBuffer != null) triCountBuffer.Release ();
         this.gameObject.SetActive(false);
         EventManager.current.OctreeDestroyed(this);
     }

@@ -15,6 +15,9 @@ public class Planet : MonoBehaviour
     private Vector3 _velocity;
     private Vector3 _rotationalVelocity;
 
+    private float noiseHeightMultiplier = 20f;
+    private float noiseScale = 1f;
+
     private MC_Octree _octree;
 
     [SerializeField] private RenderTexture _renderTexture;
@@ -55,8 +58,8 @@ public class Planet : MonoBehaviour
 
         _computeShaderTexture.Dispatch(0, textureSize/threadCount, textureSize/threadCount, textureSize/threadCount);
 
-		// _computeShaderTexture.SetFloat("noiseHeightMultiplier", noiseHeightMultiplier);
-		// _computeShaderTexture.SetFloat("noiseScale", noiseScale);
+		_computeShaderTexture.SetFloat("noiseHeightMultiplier", noiseHeightMultiplier);
+		_computeShaderTexture.SetFloat("noiseScale", noiseScale);
     }
 
     public RenderTexture getTexture()

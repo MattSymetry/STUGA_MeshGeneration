@@ -1,34 +1,78 @@
 #pragma kernel CSMain
+#include "Noise.compute"
 
 RWTexture3D<float2> renderTexture;
 int textureSize;
 float planetSize;
+float noiseScale;
+float noiseHeightMultiplier;
 
-// float calculateDensity(int3 cell) {
-// 	float3 worldPos = (cell / float(textureSize-1.0) - 0.5f) * planetSize;
+float fbm(int numLayers, float lacunarity, float persistence, float scale, float3 pos) {
+	float noise = 0;
+	float frequency = scale / 100;
+	float amplitude = 1;
 
-// 	float halfS = planetSize / 2;
-// 	float maxD = length(float3(halfS,halfS,halfS));
+	for (int i = 0; i < numLayers; i ++) {
+		float n = 1-abs(snoise(pos * frequency)*2-1);
+		//n*=n;
+		noise += n * amplitude;
 
-// 	float fudge = 1;
+		amplitude *= persistence;
+		frequency *= lacunarity;
+	}
 
-// 	float density = length(worldPos) / (maxD + fudge) - 0.5;
+	return noise;
+}
 
-// 	return density;
-// }
+float calculateDensity(int3 cell) {
+	float3 worldPos = ((cell / float(textureSize-1.0)) - 0.5) * float(textureSize-1.0);
+
+	float halfS = planetSize / 2;
+	float maxD = length(float3(halfS,halfS,halfS));
+
+	float fudge = 1;
+
+	float density = length(worldPos) / (maxD + fudge) - 0.5;
+
+	// Noise
+	float noise = fbm(6, 2, 0.5, noiseScale, worldPos) * noiseHeightMultiplier;
+
+	density += noise;
+
+	return density;
+}
+
+float nrand(float2 uv)
+{
+    return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+}
+
 
 [numthreads(8,8,8)]
 void CSMain (int3 id : SV_DispatchThreadID)
 {
-	float3 worldPos = ((id / float(textureSize-1.0)) - 0.5) * float(textureSize-1.0);
-    float dstFromCenter = length(worldPos);
-    float mapValue = dstFromCenter - planetSize;
+    if (id.x >= textureSize || id.y >= textureSize || id.z >= textureSize) {
+		return;
+	}
+
+	float density = 0;
+
+	const int b = 1;
+	if (id.x >= textureSize-b || id.y >= textureSize-b || id.z >= textureSize-b) {
+		density = 1;
+	}
+	else if (id.x <= b || id.y <= b || id.z <=b) {
+		density = 1;
+	}
+	else {
+		density = calculateDensity(id);
+	}
 
     float g = 0;
     if (id.x > textureSize/2) {
         g = 1;
     }
 
-	renderTexture[id] = float2(mapValue, g);
+	renderTexture[id] = float2(density, g);
 
 }
