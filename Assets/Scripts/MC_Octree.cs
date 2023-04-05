@@ -50,11 +50,20 @@ public class MC_Octree : MonoBehaviour
     private int hirarchyLevel = 0;
 
     private ComputeShader _computeShader;
+    private AsyncGPUReadbackRequest request;
     private int threadCount = 8;
     private bool useFlatShading = false;
+    private ComputeBuffer triangleBuffer;
+    private ComputeBuffer triCountBuffer;
+    private NativeArray<Vertex> vertexDataArray;
+    private bool meshIsDone = false;
+
+
 
     public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0)
     {
+        isDivided = false;
+        meshIsDone = false;
         _position = position;
         _size = size;
         _resolution = resolution;
@@ -63,14 +72,24 @@ public class MC_Octree : MonoBehaviour
         _planet = planet;
         this.hirarchyLevel = hirarchyLevel;
 
-        //transform.position = _position;
         transform.localPosition = Vector3.zero;
 
         EventManager.current.OctreeCreated(this);
 
         _computeShader = shader;
-
+        _mesh = new Mesh {
+			name = "Procedural Mesh"
+		};
+        _meshFilter.mesh = _mesh;
+        _meshCollider.sharedMesh = _mesh;
+        _meshRenderer.enabled = true;
+        _meshCollider.enabled = true;
         generateMesh();
+    }
+
+    public bool meshDone() 
+    {
+        return meshIsDone;
     }
 
     public void divide()
@@ -78,15 +97,39 @@ public class MC_Octree : MonoBehaviour
         if(!isDivided && ((_size.x/2) / _resolution.x) >= 1)
         {
             for (int i = 0; i < 8; i++) {
-                GameObject chunkObj = new GameObject("Chunk_"+i);
+                GameObject chunkObj = ObjectPool.SharedInstance.GetPooledObject();
+                if (chunkObj != null) 
+                {
+                    chunkObj.SetActive(true);
+                }
                 chunkObj.transform.parent = transform;
-                MC_Octree chunk = chunkObj.AddComponent<MC_Octree>();
+                MC_Octree chunk = chunkObj.GetComponent<MC_Octree>();
                 chunk.initiate((transform.position + _position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1);
                 _chunks[i] = chunk;
             }
             isDivided = true;
+            StartCoroutine(allChildrenDone());
+        }
+    }
+
+    IEnumerator allChildrenDone() 
+    {
+        bool done = true;
+        foreach (MC_Octree chunk in _chunks) {
+            if (!chunk.meshDone()) 
+            {
+                done = false;
+            }
+        }
+        if (done) 
+        {
             _meshRenderer.enabled = false;
             _meshCollider.enabled = false;
+        }
+        else 
+        {
+            yield return new WaitForEndOfFrame();
+            StartCoroutine(allChildrenDone());
         }
     }
 
@@ -95,9 +138,10 @@ public class MC_Octree : MonoBehaviour
         if(isDivided)
         {
             for (int i = 0; i < 8; i++) {
-                Destroy(_chunks[i].gameObject);
+                _chunks[i].destruction();
             }
             isDivided = false;
+            meshIsDone = false;
             _meshRenderer.enabled = true;
             _meshCollider.enabled = true;
         }
@@ -105,9 +149,9 @@ public class MC_Octree : MonoBehaviour
 
     private void Awake()
     {
-        _meshFilter = transform.gameObject.AddComponent<MeshFilter>();
-        _meshRenderer = transform.gameObject.AddComponent<MeshRenderer>();
-        _meshCollider = transform.gameObject.AddComponent<MeshCollider>();
+        _meshFilter = transform.gameObject.GetComponent<MeshFilter>();
+        _meshRenderer = transform.gameObject.GetComponent<MeshRenderer>();
+        _meshCollider = transform.gameObject.GetComponent<MeshCollider>();
 
         
        
@@ -132,14 +176,10 @@ public class MC_Octree : MonoBehaviour
 
     private void generateMesh() {
         _mesh.Clear();
-
-        var watch = System.Diagnostics.Stopwatch.StartNew();
         marchCubes();
-        watch.Stop();
-        Debug.Log("CS: "+watch.ElapsedMilliseconds);
     }
 
-    private async void marchCubes()
+    private void marchCubes()
     {
         int numPoints = _resolution.x * _resolution.y * _resolution.z;
 		int numVoxelsPerAxis = _resolution.x - 1;
@@ -147,12 +187,10 @@ public class MC_Octree : MonoBehaviour
 		int maxTriangleCount = numVoxels * 5;
 		int maxVertexCount = maxTriangleCount * 3;
 
-        ComputeBuffer triangleBuffer = new ComputeBuffer(maxVertexCount, System.Runtime.InteropServices.Marshal.SizeOf(typeof(Vertex)), ComputeBufferType.Append);
-        ComputeBuffer triCountBuffer = new ComputeBuffer (1, sizeof (int), ComputeBufferType.Raw);
-        Vertex[] vertexDataArray = new Vertex[maxVertexCount];
+        triangleBuffer = new ComputeBuffer(maxVertexCount, System.Runtime.InteropServices.Marshal.SizeOf(typeof(Vertex)), ComputeBufferType.Append);
+        triCountBuffer = new ComputeBuffer (1, sizeof (int), ComputeBufferType.Raw);
+        vertexDataArray = new NativeArray<Vertex>();
         int threads = Mathf.CeilToInt ((_resolution.x+1) / (float) threadCount);
-
-        //Debug.Log("stepSize : "+(_size.x/(_resolution.x))+" pos: "+_position+" size: "+_size);
 
         _computeShader.SetTexture(0, "sampleTexture", _planet.getTexture());
         _computeShader.SetInt("textureSize", _planet.getTextureSize());
@@ -166,64 +204,79 @@ public class MC_Octree : MonoBehaviour
 
 		_computeShader.Dispatch(0, threads,threads,threads);
 
+        request = AsyncGPUReadback.Request(triangleBuffer);
 
-        int[] vertexCountData = new int[1];
-		triCountBuffer.SetData(vertexCountData);
-		ComputeBuffer.CopyCount(triangleBuffer, triCountBuffer, 0);
+        StartCoroutine(readBackTriCount());
+    }
 
-		triCountBuffer.GetData(vertexCountData);
+    IEnumerator readBackTriCount()
+    {
+        if(request.done && !request.hasError) 
+        {
+            int[] vertexCountData = new int[1];
+            triCountBuffer.SetData(vertexCountData);
+            ComputeBuffer.CopyCount(triangleBuffer, triCountBuffer, 0);
 
-		int numVertices = vertexCountData[0] * 3;
+            vertexDataArray = request.GetData<Vertex>();
 
-		triangleBuffer.GetData(vertexDataArray, 0, 0, numVertices);
+            triCountBuffer.GetData(vertexCountData);
 
-        // Fetch data
-        Dictionary<int2, int> vertexIndexMap = new Dictionary<int2, int>();
-		List<Vector3> processedVertices = new List<Vector3>();
-		List<Vector3> processedNormals = new List<Vector3>();
-		List<int> processedTriangles = new List<int>();
+            int numVertices = vertexCountData[0] * 3;
 
-        int triangleIndex = 0;
+            // Fetch data
+            Dictionary<int2, int> vertexIndexMap = new Dictionary<int2, int>();
+            List<Vector3> processedVertices = new List<Vector3>();
+            List<Vector3> processedNormals = new List<Vector3>();
+            List<int> processedTriangles = new List<int>();
 
-        for (int i = 0; i < numVertices; i++)
-		{
-			Vertex data = vertexDataArray[i];
+            int triangleIndex = 0;
 
-			int sharedVertexIndex;
-			if (!useFlatShading && vertexIndexMap.TryGetValue(data.id, out sharedVertexIndex))
-			{
-				processedTriangles.Add(sharedVertexIndex);
-			}
-			else
-			{
-				if (!useFlatShading)
-				{
-					vertexIndexMap.Add(data.id, triangleIndex);
-				}
-				processedVertices.Add(data.position);
-				processedNormals.Add(data.normal);
-				processedTriangles.Add(triangleIndex);
-				triangleIndex++;
-			}
-		}
+            for (int i = 0; i < numVertices; i++)
+            {
+                Vertex data = vertexDataArray[i];
 
-        _mesh.SetVertices(processedVertices);
-		_mesh.SetTriangles(processedTriangles, 0, true);
+                int sharedVertexIndex;
+                if (!useFlatShading && vertexIndexMap.TryGetValue(data.id, out sharedVertexIndex))
+                {
+                    processedTriangles.Add(sharedVertexIndex);
+                }
+                else
+                {
+                    if (!useFlatShading)
+                    {
+                        vertexIndexMap.Add(data.id, triangleIndex);
+                    }
+                    processedVertices.Add(data.position);
+                    processedNormals.Add(data.normal);
+                    processedTriangles.Add(triangleIndex);
+                    triangleIndex++;
+                }
+            }
 
-		if (useFlatShading)
-		{
-			_mesh.RecalculateNormals();
-		}
-		else
-		{
-			_mesh.SetNormals(processedNormals);
-		}
-        _mesh.RecalculateBounds();
-        _mesh.Optimize();
-        _meshCollider.sharedMesh = _mesh;
+            _mesh.SetVertices(processedVertices);
+            _mesh.SetTriangles(processedTriangles, 0, true);
 
-        triangleBuffer.Release ();
-        triCountBuffer.Release ();
+            if (useFlatShading)
+            {
+                _mesh.RecalculateNormals();
+            }
+            else
+            {
+                _mesh.SetNormals(processedNormals);
+            }
+            _mesh.RecalculateBounds();
+            _mesh.Optimize();
+            _meshCollider.sharedMesh = _mesh;
+            vertexDataArray.Dispose();
+            triangleBuffer.Release ();
+            triCountBuffer.Release ();
+            meshIsDone = true;
+        }
+        else
+        {
+            yield return new WaitForEndOfFrame();
+            StartCoroutine(readBackTriCount());
+        }
     }
 
     public Vector3 getAbsPosition()
@@ -233,6 +286,18 @@ public class MC_Octree : MonoBehaviour
 
     void OnDestroy()
     {
+        if (vertexDataArray.IsCreated) vertexDataArray.Dispose();
+        if (triangleBuffer != null) triangleBuffer.Release ();
+        if (triCountBuffer != null) triCountBuffer.Release ();
+        EventManager.current.OctreeDestroyed(this);
+    }
+
+    void destruction()
+    {
+        _mesh.Clear();
+        _meshCollider.sharedMesh = null;
+        _meshFilter.mesh = null;
+        this.gameObject.SetActive(false);
         EventManager.current.OctreeDestroyed(this);
     }
 

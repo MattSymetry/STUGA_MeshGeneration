@@ -16,7 +16,7 @@ public class CameraController : MonoBehaviour
     private float _maxCameraDistance = 1000f;
 
     private float _zoomFactor = 2f;
-    private float _dragFactor = 2f;
+    private float _dragFactor = 200f;
 
     private Vector2 _mouseDelta = Vector2.zero;
     private bool _mouseClicked = false;
@@ -61,7 +61,7 @@ public class CameraController : MonoBehaviour
     void mouseDelta(Vector2 delta)
     {
         if (!_mouseClicked) return;
-        _mouseDelta = delta*Time.deltaTime*_cameraDistancePlanet/_dragFactor;
+        _mouseDelta = delta*_cameraDistancePlanet/_dragFactor;
         if (Vector3.Dot(_camera.transform.up, Vector3.down) > 0) _mouseDelta.x *= -1;
         _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, Vector3.up, _mouseDelta.x);
         _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, _camera.transform.right, -_mouseDelta.y);
@@ -76,9 +76,10 @@ public class CameraController : MonoBehaviour
     void focusPlanet(int planetIndex)
     {
         _currentPlanet = planetIndex;
-        _camera.transform.position = _planets[_currentPlanet].transform.position + new Vector3(_planets[_currentPlanet].getRadius()*2.5f,0,0);
+        _camera.transform.position = _planets[_currentPlanet].transform.position + new Vector3(_planets[_currentPlanet].getRadius()*4f,0,0);
         _camera.transform.parent = _planets[_currentPlanet].transform;
         _camera.transform.LookAt(_planets[_currentPlanet].transform.position);
+        _maxCameraDistance = _planets[_currentPlanet].getTextureSize()*2;
         updateCameraDistance();
     }
 

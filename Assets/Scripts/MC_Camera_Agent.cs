@@ -25,9 +25,10 @@ public class MC_Camera_Agent : MonoBehaviour
     {
         foreach (MC_Octree octree in _octrees)
         {
+            if (!octree.gameObject.activeSelf) continue;
             currOctreeSize = octree.getSize();
             currOctreeDistance = Vector3.Distance(octree.getAbsPosition(), transform.position);
-            if (currOctreeDistance < currOctreeSize*2 && !octree.getIsDivided())
+            if (currOctreeSize > Helpers.minChunkSize && currOctreeDistance < currOctreeSize*2 && !octree.getIsDivided())
             {
                 octree.divide();
                 break;
@@ -47,6 +48,6 @@ public class MC_Camera_Agent : MonoBehaviour
 
     private void onOctreeDestroyed(MC_Octree octree)
     {
-        _octrees.Remove(octree);
+        //_octrees.Remove(octree);
     }
 }
