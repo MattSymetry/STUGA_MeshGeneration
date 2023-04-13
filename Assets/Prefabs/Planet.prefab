@@ -53,6 +53,8 @@ MonoBehaviour:
   _computeShader: {fileID: 7200000, guid: 3fea8589993bb485087c4e52e7fb588c, type: 3}
   _computeShaderTexture: {fileID: 7200000, guid: d707ab8cd22994e1fa36e615977fcfb3,
     type: 3}
+  _computeShaderEditTexture: {fileID: 7200000, guid: bf167e8c4fa274aae94fff401b10f614,
+    type: 3}
   _renderTexture: {fileID: 0}
 --- !u!64 &812312127336954544
 MeshCollider:

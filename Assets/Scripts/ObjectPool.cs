@@ -12,10 +12,6 @@ public class ObjectPool : MonoBehaviour
     void Awake()
     {
         SharedInstance = this;
-    }
-
-    void Start()
-    {
         pooledObjects = new List<GameObject>();
         GameObject tmp;
         for(int i = 0; i < amountToPool; i++)
@@ -24,6 +20,11 @@ public class ObjectPool : MonoBehaviour
             tmp.SetActive(false);
             pooledObjects.Add(tmp);
         }
+    }
+
+    void Start()
+    {
+        
     }
 
     public GameObject GetPooledObject()

@@ -53,6 +53,15 @@ public partial class @InputController : IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""MousePosition"",
+                    ""type"": ""Value"",
+                    ""id"": ""841dbef7-0467-4923-9820-88606f0cdbd3"",
+                    ""expectedControlType"": ""Vector2"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
@@ -165,6 +174,28 @@ public partial class @InputController : IInputActionCollection2, IDisposable
                     ""action"": ""LeftClick"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""4d47c4c9-d40d-4d6c-80fa-f93090a25f99"",
+                    ""path"": ""<Mouse>/position"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MousePosition"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""dd76c03e-44dc-497e-b75d-ce3d56856d78"",
+                    ""path"": ""<VirtualMouse>/position"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MousePosition"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -198,6 +229,7 @@ public partial class @InputController : IInputActionCollection2, IDisposable
         m_FocusMode_Zoom = m_FocusMode.FindAction("Zoom", throwIfNotFound: true);
         m_FocusMode_MouseDelta = m_FocusMode.FindAction("MouseDelta", throwIfNotFound: true);
         m_FocusMode_LeftClick = m_FocusMode.FindAction("LeftClick", throwIfNotFound: true);
+        m_FocusMode_MousePosition = m_FocusMode.FindAction("MousePosition", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -260,6 +292,7 @@ public partial class @InputController : IInputActionCollection2, IDisposable
     private readonly InputAction m_FocusMode_Zoom;
     private readonly InputAction m_FocusMode_MouseDelta;
     private readonly InputAction m_FocusMode_LeftClick;
+    private readonly InputAction m_FocusMode_MousePosition;
     public struct FocusModeActions
     {
         private @InputController m_Wrapper;
@@ -267,6 +300,7 @@ public partial class @InputController : IInputActionCollection2, IDisposable
         public InputAction @Zoom => m_Wrapper.m_FocusMode_Zoom;
         public InputAction @MouseDelta => m_Wrapper.m_FocusMode_MouseDelta;
         public InputAction @LeftClick => m_Wrapper.m_FocusMode_LeftClick;
+        public InputAction @MousePosition => m_Wrapper.m_FocusMode_MousePosition;
         public InputActionMap Get() { return m_Wrapper.m_FocusMode; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -285,6 +319,9 @@ public partial class @InputController : IInputActionCollection2, IDisposable
                 @LeftClick.started -= m_Wrapper.m_FocusModeActionsCallbackInterface.OnLeftClick;
                 @LeftClick.performed -= m_Wrapper.m_FocusModeActionsCallbackInterface.OnLeftClick;
                 @LeftClick.canceled -= m_Wrapper.m_FocusModeActionsCallbackInterface.OnLeftClick;
+                @MousePosition.started -= m_Wrapper.m_FocusModeActionsCallbackInterface.OnMousePosition;
+                @MousePosition.performed -= m_Wrapper.m_FocusModeActionsCallbackInterface.OnMousePosition;
+                @MousePosition.canceled -= m_Wrapper.m_FocusModeActionsCallbackInterface.OnMousePosition;
             }
             m_Wrapper.m_FocusModeActionsCallbackInterface = instance;
             if (instance != null)
@@ -298,6 +335,9 @@ public partial class @InputController : IInputActionCollection2, IDisposable
                 @LeftClick.started += instance.OnLeftClick;
                 @LeftClick.performed += instance.OnLeftClick;
                 @LeftClick.canceled += instance.OnLeftClick;
+                @MousePosition.started += instance.OnMousePosition;
+                @MousePosition.performed += instance.OnMousePosition;
+                @MousePosition.canceled += instance.OnMousePosition;
             }
         }
     }
@@ -316,5 +356,6 @@ public partial class @InputController : IInputActionCollection2, IDisposable
         void OnZoom(InputAction.CallbackContext context);
         void OnMouseDelta(InputAction.CallbackContext context);
         void OnLeftClick(InputAction.CallbackContext context);
+        void OnMousePosition(InputAction.CallbackContext context);
     }
 }

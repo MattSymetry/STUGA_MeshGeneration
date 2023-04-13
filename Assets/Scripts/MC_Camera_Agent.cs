@@ -28,12 +28,12 @@ public class MC_Camera_Agent : MonoBehaviour
             if (!octree.gameObject.activeSelf) continue;
             currOctreeSize = octree.getSize();
             currOctreeDistance = Vector3.Distance(octree.getAbsPosition(), transform.position);
-            if (currOctreeSize > Helpers.minChunkSize && currOctreeDistance < currOctreeSize*2 && !octree.getIsDivided())
+            if (currOctreeSize > Helpers.minChunkSize && currOctreeDistance < currOctreeSize && !octree.getIsDivided())
             {
                 octree.divide();
                 break;
             }
-            else if (currOctreeDistance > currOctreeSize*2 && octree.getIsDivided())
+            else if (currOctreeDistance > currOctreeSize*4 && octree.getIsDivided())
             {
                 octree.merge();
                 break;

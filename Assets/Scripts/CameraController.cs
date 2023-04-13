@@ -1,6 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+enum CameraControllerState
+{
+    Orbit,
+    Fly,
+    Rise,
+    Lower
+}
 
 public class CameraController : MonoBehaviour
 {
@@ -9,7 +19,6 @@ public class CameraController : MonoBehaviour
     private List<Planet> _planets = new List<Planet>();
     private int _currentPlanet = 0;
 
-[SerializeField]
     private float _cameraDistancePlanet = 0f;
     private float _cameraDistanceCenter = 0f;
     private float _minCameraDistance = 50f;
@@ -20,6 +29,14 @@ public class CameraController : MonoBehaviour
 
     private Vector2 _mouseDelta = Vector2.zero;
     private bool _mouseClicked = false;
+    private CameraControllerState _state = CameraControllerState.Orbit;
+
+    private List<Button> _interactionButtons = new List<Button>();
+
+    [SerializeField] private TMP_Text _planetName;
+    [SerializeField] private Slider _sizeSlider;
+    [SerializeField] private GameObject _drawSphere;
+    private Vector2 _mousePosition = Vector2.zero;
 
     void Awake()
     {
@@ -28,10 +45,16 @@ public class CameraController : MonoBehaviour
         _inputController.FocusMode.MouseDelta.performed += ctx => mouseDelta(ctx.ReadValue<Vector2>());
         _inputController.FocusMode.LeftClick.performed += ctx => mouseClick(true);
         _inputController.FocusMode.LeftClick.canceled += ctx => mouseClick(false);
+        _inputController.FocusMode.MousePosition.performed += ctx => mousePosition(ctx.ReadValue<Vector2>());
     }
     
     void Start()
     {
+        _drawSphere.SetActive(false);
+        foreach (GameObject obj in GameObject.FindGameObjectsWithTag("InteractionButton"))
+        {
+            _interactionButtons.Add(obj.GetComponent<Button>());
+        }
         _camera = GetComponent<Camera>();
         foreach (GameObject obj in GameObject.FindGameObjectsWithTag("Planet"))
         {
@@ -43,7 +66,19 @@ public class CameraController : MonoBehaviour
     
     void Update()
     {
-        
+        if (_state == CameraControllerState.Rise || _state == CameraControllerState.Lower) {
+            Ray ray = _camera.ScreenPointToRay(_mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit, 1000f))
+            {
+                _drawSphere.transform.localScale = new Vector3(_sizeSlider.value, _sizeSlider.value, _sizeSlider.value);
+                _drawSphere.SetActive(true);
+                _drawSphere.transform.position = hit.point;
+            }
+            else
+            {
+                _drawSphere.SetActive(false);
+            }
+        }
     }
 
     void zoom(float zoom)
@@ -61,26 +96,45 @@ public class CameraController : MonoBehaviour
     void mouseDelta(Vector2 delta)
     {
         if (!_mouseClicked) return;
-        _mouseDelta = delta*_cameraDistancePlanet/_dragFactor;
-        if (Vector3.Dot(_camera.transform.up, Vector3.down) > 0) _mouseDelta.x *= -1;
-        _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, Vector3.up, _mouseDelta.x);
-        _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, _camera.transform.right, -_mouseDelta.y);
-        updateCameraDistance();
+        if (_state == CameraControllerState.Orbit) {
+            _mouseDelta = delta*_cameraDistancePlanet/_dragFactor;
+            if (Vector3.Dot(_camera.transform.up, Vector3.down) > 0) _mouseDelta.x *= -1;
+            _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, Vector3.up, _mouseDelta.x);
+            _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, _camera.transform.right, -_mouseDelta.y);
+            updateCameraDistance();
+        }
+        
+    }
+
+    void mousePosition(Vector2 pos)
+    {
+        _mousePosition = pos;
     }
 
     void mouseClick(bool click) 
     {
         _mouseClicked = click;
+        if (!click) return;
+        if (_state == CameraControllerState.Rise && _drawSphere.active) editPlanet(_drawSphere.transform.position, -1f);
+        if (_state == CameraControllerState.Lower && _drawSphere.active) editPlanet(_drawSphere.transform.position, 1f);
+
+    }
+
+    void editPlanet(Vector3 pos, float strength)
+    {
+        pos = pos - _planets[_currentPlanet].getPosition();
+        _planets[_currentPlanet].editTexture(pos, _sizeSlider.value, strength);
     }
 
     void focusPlanet(int planetIndex)
     {
         _currentPlanet = planetIndex;
-        _camera.transform.position = _planets[_currentPlanet].transform.position + new Vector3(_planets[_currentPlanet].getRadius()*4f,0,0);
         _camera.transform.parent = _planets[_currentPlanet].transform;
-        _camera.transform.LookAt(_planets[_currentPlanet].transform.position);
+        _camera.transform.position = _planets[_currentPlanet].getPosition() + new Vector3(_planets[_currentPlanet].getRadius()*4f,0,0);
+        _camera.transform.LookAt(_planets[_currentPlanet].getPosition());
         _maxCameraDistance = _planets[_currentPlanet].getTextureSize()*2;
         updateCameraDistance();
+        _planetName.SetText(_planets[_currentPlanet].getName());
     }
 
     void updateCameraDistance()
@@ -97,5 +151,29 @@ public class CameraController : MonoBehaviour
     void OnDisable()
     {
         _inputController.Disable();
+    }
+
+    public void OnButtonCam(Button btn) {
+        _state = CameraControllerState.Orbit;
+        enableAllBtns();
+        btn.interactable = false;
+    }
+
+    public void OnButtonRise(Button btn) {
+        _state = CameraControllerState.Rise;
+        enableAllBtns();
+        btn.interactable = false;
+    }
+
+    public void OnButtonLower(Button btn) {
+        _state = CameraControllerState.Lower;
+        enableAllBtns();
+        btn.interactable = false;
+    }
+
+    private void enableAllBtns() {
+        foreach (Button btn in _interactionButtons) {
+            btn.interactable = true;
+        }
     }
 }

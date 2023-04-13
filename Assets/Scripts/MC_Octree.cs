@@ -58,8 +58,6 @@ public class MC_Octree : MonoBehaviour
     private NativeArray<Vertex> vertexDataArray;
     private bool meshIsDone = false;
 
-
-
     public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0)
     {
         isDivided = false;
@@ -104,7 +102,7 @@ public class MC_Octree : MonoBehaviour
                 }
                 chunkObj.transform.parent = transform;
                 MC_Octree chunk = chunkObj.GetComponent<MC_Octree>();
-                chunk.initiate((transform.position + _position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1);
+                chunk.initiate((_position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1);
                 _chunks[i] = chunk;
             }
             isDivided = true;
@@ -144,6 +142,7 @@ public class MC_Octree : MonoBehaviour
             meshIsDone = false;
             _meshRenderer.enabled = true;
             _meshCollider.enabled = true;
+            generateMesh();
         }
     }
 
@@ -198,7 +197,7 @@ public class MC_Octree : MonoBehaviour
         _computeShader.SetFloat("stepSize", (_size.x/(_resolution.x)));
 		triangleBuffer.SetCounterValue(0);
 		_computeShader.SetBuffer(0, "triangles", triangleBuffer);
-		_computeShader.SetVector("chunkPos", _position);
+		_computeShader.SetVector("chunkPos", _position - _planet.getPosition());
         _computeShader.SetVector("chunkSize", _size);
         _computeShader.SetInt("hirarchyLevel", hirarchyLevel);
 
@@ -281,7 +280,7 @@ public class MC_Octree : MonoBehaviour
 
     public Vector3 getAbsPosition()
     {
-        return transform.position + _position;
+        return transform.position + _position - _planet.getPosition();
     }
 
     void OnDestroy()
