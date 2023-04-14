@@ -6,6 +6,22 @@ using Unity.Mathematics;
 using UnityEngine;
 using System;
 
+struct MC_Octree_Struct {
+    public MC_Octree octreeObject;
+    // public bool isActive;
+    // public bool isDivided;
+    // public float size;
+    // public float3 position;
+
+    // public void divide () {
+    //     octreeObject.divide();
+    // }
+
+    // public void merge () {
+    //     octreeObject.merge();
+    // }
+}
+
 struct Vertex {
     public Vector3 position;
     public Vector3 normal;
@@ -58,8 +74,12 @@ public class MC_Octree : MonoBehaviour
     private NativeArray<Vertex> vertexDataArray;
     private bool meshIsDone = false;
 
-    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0)
+    private bool _hasMesh = true;
+    private MC_Octree_Struct _octreeStruct;
+
+    public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0, bool hasMesh = true)
     {
+        _hasMesh = hasMesh;
         isDivided = false;
         meshIsDone = false;
         _position = position;
@@ -82,7 +102,10 @@ public class MC_Octree : MonoBehaviour
         _meshCollider.sharedMesh = _mesh;
         _meshRenderer.enabled = true;
         _meshCollider.enabled = true;
-        generateMesh();
+        if (_hasMesh) 
+        {
+            generateMesh();
+        }
     }
 
     public bool meshDone() 
@@ -102,7 +125,7 @@ public class MC_Octree : MonoBehaviour
                 }
                 chunkObj.transform.parent = transform;
                 MC_Octree chunk = chunkObj.GetComponent<MC_Octree>();
-                chunk.initiate((_position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1);
+                chunk.initiate((_position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1, _hasMesh);
                 _chunks[i] = chunk;
             }
             isDivided = true;
@@ -161,6 +184,8 @@ public class MC_Octree : MonoBehaviour
         _meshCollider.sharedMesh = _mesh;
 
         _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        _octreeStruct = new MC_Octree_Struct();
+        _octreeStruct.octreeObject = this;
     }
 
     public bool getIsDivided()

@@ -21,10 +21,10 @@ public static class Helpers
         return new Vector3(a.x * b.x, a.y * b.y, a.z * b.z);
     }
 
-    public static float minChunkSize = 8;
+    public static float minChunkSize = 16;
     
     public static Vector3Int getChunckRes (Vector3 size)
     {
-        return new Vector3Int(8,8,8);
+        return new Vector3Int(16,16,16);
     }
 }

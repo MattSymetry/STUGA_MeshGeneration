@@ -43,7 +43,7 @@ public class Planet : MonoBehaviour
         }
         chunkObj.transform.parent = transform;
         _octree = chunkObj.GetComponent<MC_Octree>();            
-        _octree.initiate(_position, _size, Helpers.getChunckRes(_size), _mat, this, _computeShader, 1);
+        _octree.initiate(_position, _size, Helpers.getChunckRes(_size), _mat, this, _computeShader, 1, true);
     }
 
     public float getRadius()
