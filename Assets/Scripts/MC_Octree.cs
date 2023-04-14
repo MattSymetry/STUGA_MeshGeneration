@@ -6,22 +6,6 @@ using Unity.Mathematics;
 using UnityEngine;
 using System;
 
-struct MC_Octree_Struct {
-    public MC_Octree octreeObject;
-    // public bool isActive;
-    // public bool isDivided;
-    // public float size;
-    // public float3 position;
-
-    // public void divide () {
-    //     octreeObject.divide();
-    // }
-
-    // public void merge () {
-    //     octreeObject.merge();
-    // }
-}
-
 struct Vertex {
     public Vector3 position;
     public Vector3 normal;
@@ -75,7 +59,6 @@ public class MC_Octree : MonoBehaviour
     private bool meshIsDone = false;
 
     private bool _hasMesh = true;
-    private MC_Octree_Struct _octreeStruct;
 
     public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0, bool hasMesh = true)
     {
@@ -92,18 +75,19 @@ public class MC_Octree : MonoBehaviour
 
         transform.localPosition = Vector3.zero;
 
-        EventManager.current.OctreeCreated(this);
-
         _computeShader = shader;
         _mesh = new Mesh {
 			name = "Procedural Mesh"
 		};
+        _mesh.MarkDynamic();
         _meshFilter.mesh = _mesh;
         _meshCollider.sharedMesh = _mesh;
         _meshRenderer.enabled = true;
         _meshCollider.enabled = true;
+        EventManager.current.OctreeCreated_ALL(this);
         if (_hasMesh) 
         {
+            EventManager.current.OctreeCreated(this);
             generateMesh();
         }
     }
@@ -184,8 +168,6 @@ public class MC_Octree : MonoBehaviour
         _meshCollider.sharedMesh = _mesh;
 
         _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        _octreeStruct = new MC_Octree_Struct();
-        _octreeStruct.octreeObject = this;
     }
 
     public bool getIsDivided()
@@ -199,8 +181,12 @@ public class MC_Octree : MonoBehaviour
     }
 
     private void generateMesh() {
-        _mesh.Clear();
         marchCubes();
+    }
+
+    public void updateMesh() 
+    {
+        generateMesh();
     }
 
     private void marchCubes()
@@ -277,6 +263,8 @@ public class MC_Octree : MonoBehaviour
                 }
             }
 
+            _mesh.Clear();
+
             _mesh.SetVertices(processedVertices);
             _mesh.SetTriangles(processedTriangles, 0, true);
 
@@ -295,6 +283,11 @@ public class MC_Octree : MonoBehaviour
             triangleBuffer.Release ();
             triCountBuffer.Release ();
             meshIsDone = true;
+
+            if (numVertices < 3) {
+                _hasMesh = false;
+                EventManager.current.OctreeDestroyed(this);
+            }
         }
         else
         {
@@ -308,24 +301,31 @@ public class MC_Octree : MonoBehaviour
         return transform.position + _position - _planet.getPosition();
     }
 
+    public bool hasMesh()
+    {
+        return _hasMesh;
+    }
+
     void OnDestroy()
     {
         if (vertexDataArray.IsCreated) vertexDataArray.Dispose();
         if (triangleBuffer != null) triangleBuffer.Release ();
         if (triCountBuffer != null) triCountBuffer.Release ();
+        EventManager.current.OctreeDestroyed_ALL(this);
         EventManager.current.OctreeDestroyed(this);
     }
 
     void destruction()
     {
+        this.gameObject.SetActive(false);
+        EventManager.current.OctreeDestroyed_ALL(this);
+        EventManager.current.OctreeDestroyed(this);
         _mesh.Clear();
         _meshCollider.sharedMesh = null;
         _meshFilter.mesh = null;
         if (vertexDataArray.IsCreated) vertexDataArray.Dispose();
         if (triangleBuffer != null) triangleBuffer.Release ();
         if (triCountBuffer != null) triCountBuffer.Release ();
-        this.gameObject.SetActive(false);
-        EventManager.current.OctreeDestroyed(this);
     }
 
 }

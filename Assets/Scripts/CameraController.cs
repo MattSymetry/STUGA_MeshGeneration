@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Unity.Mathematics;
 using TMPro;
 
 enum CameraControllerState
@@ -36,7 +37,10 @@ public class CameraController : MonoBehaviour
     [SerializeField] private TMP_Text _planetName;
     [SerializeField] private Slider _sizeSlider;
     [SerializeField] private GameObject _drawSphere;
+    private DrawSphere _drawSphereScript;
     private Vector2 _mousePosition = Vector2.zero;
+
+    private List<MC_Octree> _octrees = new List<MC_Octree>();
 
     void Awake()
     {
@@ -46,11 +50,15 @@ public class CameraController : MonoBehaviour
         _inputController.FocusMode.LeftClick.performed += ctx => mouseClick(true);
         _inputController.FocusMode.LeftClick.canceled += ctx => mouseClick(false);
         _inputController.FocusMode.MousePosition.performed += ctx => mousePosition(ctx.ReadValue<Vector2>());
+
+        EventManager.current.onOctreeCreated_ALL += onOctreeCreated_ALL;
+        EventManager.current.onOctreeDestroyed_ALL += onOctreeDestroyed_ALL;
     }
     
     void Start()
     {
         _drawSphere.SetActive(false);
+        _drawSphereScript = _drawSphere.GetComponent<DrawSphere>();
         foreach (GameObject obj in GameObject.FindGameObjectsWithTag("InteractionButton"))
         {
             _interactionButtons.Add(obj.GetComponent<Button>());
@@ -63,9 +71,20 @@ public class CameraController : MonoBehaviour
         focusPlanet(_currentPlanet);
     }
 
+    private void onOctreeCreated_ALL(MC_Octree octree)
+    {
+        _octrees.Add(octree);
+    }
+
+    private void onOctreeDestroyed_ALL(MC_Octree octree)
+    {
+        _octrees.Remove(octree);
+    }
+
     
     void Update()
     {
+        _drawSphere.SetActive(false);
         if (_state == CameraControllerState.Rise || _state == CameraControllerState.Lower) {
             Ray ray = _camera.ScreenPointToRay(_mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f))
@@ -73,10 +92,6 @@ public class CameraController : MonoBehaviour
                 _drawSphere.transform.localScale = new Vector3(_sizeSlider.value, _sizeSlider.value, _sizeSlider.value);
                 _drawSphere.SetActive(true);
                 _drawSphere.transform.position = hit.point;
-            }
-            else
-            {
-                _drawSphere.SetActive(false);
             }
         }
     }
@@ -115,8 +130,8 @@ public class CameraController : MonoBehaviour
     {
         _mouseClicked = click;
         if (!click) return;
-        if (_state == CameraControllerState.Rise && _drawSphere.active) editPlanet(_drawSphere.transform.position, -1f);
-        if (_state == CameraControllerState.Lower && _drawSphere.active) editPlanet(_drawSphere.transform.position, 1f);
+        if (_state == CameraControllerState.Rise && _drawSphere.activeInHierarchy) editPlanet(_drawSphere.transform.position, -1f);
+        if (_state == CameraControllerState.Lower && _drawSphere.activeInHierarchy) editPlanet(_drawSphere.transform.position, 1f);
 
     }
 
@@ -124,6 +139,14 @@ public class CameraController : MonoBehaviour
     {
         pos = pos - _planets[_currentPlanet].getPosition();
         _planets[_currentPlanet].editTexture(pos, _sizeSlider.value, strength);
+		for (int i = 0; i < _octrees.Count; i++)
+		{
+			MC_Octree octree = _octrees[i];
+			if (Helpers.SphereIntersectsBox(_drawSphere.transform.position, _drawSphere.transform.localScale.x, octree.getAbsPosition(), Vector3.one * octree.getSize()))
+			{
+				octree.updateMesh();
+			}
+		}
     }
 
     void focusPlanet(int planetIndex)

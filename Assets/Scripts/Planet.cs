@@ -16,8 +16,8 @@ public class Planet : MonoBehaviour
     private Vector3 _velocity;
     private Vector3 _rotationalVelocity;
 
-    private float noiseHeightMultiplier = 20f;
-    private float noiseScale = 1f;
+    //private float noiseHeightMultiplier = 20f;
+    //private float noiseScale = 1f;
 
     private MC_Octree _octree;
 
@@ -28,8 +28,10 @@ public class Planet : MonoBehaviour
 
     private string PlanetName = "Planet";
 
+
     void Start()
     {
+        //_maxLOD = Mathf.floor(_size / Helpers.minChunkSize);
         PlanetName += " "+transform.position.x.ToString();
         _position = transform.position;
         _textureResolution = _size.x;

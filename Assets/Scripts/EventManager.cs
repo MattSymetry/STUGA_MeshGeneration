@@ -29,4 +29,22 @@ public class EventManager : MonoBehaviour
             onOctreeDestroyed(octree);
         }
     }
+
+    public event Action<MC_Octree> onOctreeCreated_ALL;
+    public void OctreeCreated_ALL(MC_Octree octree)
+    {
+        if (onOctreeCreated_ALL != null)
+        {
+            onOctreeCreated_ALL(octree);
+        }
+    }
+
+    public event Action<MC_Octree> onOctreeDestroyed_ALL;
+    public void OctreeDestroyed_ALL(MC_Octree octree)
+    {
+        if (onOctreeDestroyed_ALL != null)
+        {
+            onOctreeDestroyed_ALL(octree);
+        }
+    }
 }

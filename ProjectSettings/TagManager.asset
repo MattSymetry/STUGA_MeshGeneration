@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Planet
   - InteractionButton
+  - Chunk
   layers:
   - Default
   - TransparentFX
