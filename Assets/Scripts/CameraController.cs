@@ -7,10 +7,15 @@ using TMPro;
 
 enum CameraControllerState
 {
-    Orbit,
-    Fly,
     Rise,
-    Lower
+    Lower,
+    Draw
+}
+
+enum CameraControllerState_Cam
+{
+    Orbit,
+    Fly
 }
 
 public class CameraController : MonoBehaviour
@@ -30,12 +35,18 @@ public class CameraController : MonoBehaviour
 
     private Vector2 _mouseDelta = Vector2.zero;
     private bool _mouseClicked = false;
-    private CameraControllerState _state = CameraControllerState.Orbit;
+    private bool _mouseClickedR = false;
+    private CameraControllerState _state = CameraControllerState.Rise;
+     private CameraControllerState_Cam _CamState = CameraControllerState_Cam.Orbit;
+    private bool colorEnabled = false;
 
     private List<Button> _interactionButtons = new List<Button>();
 
     [SerializeField] private TMP_Text _planetName;
     [SerializeField] private Slider _sizeSlider;
+    [SerializeField] private Slider _colorSlider;
+    private Image _colorSliderImage;
+    private Image _colorSliderImage2;
     [SerializeField] private GameObject _drawSphere;
     private DrawSphere _drawSphereScript;
     private Vector2 _mousePosition = Vector2.zero;
@@ -49,6 +60,8 @@ public class CameraController : MonoBehaviour
         _inputController.FocusMode.MouseDelta.performed += ctx => mouseDelta(ctx.ReadValue<Vector2>());
         _inputController.FocusMode.LeftClick.performed += ctx => mouseClick(true);
         _inputController.FocusMode.LeftClick.canceled += ctx => mouseClick(false);
+        _inputController.FocusMode.RightClick.performed += ctx => mouseClickR(true);
+        _inputController.FocusMode.RightClick.canceled += ctx => mouseClickR(false);
         _inputController.FocusMode.MousePosition.performed += ctx => mousePosition(ctx.ReadValue<Vector2>());
 
         EventManager.current.onOctreeCreated_ALL += onOctreeCreated_ALL;
@@ -69,6 +82,9 @@ public class CameraController : MonoBehaviour
             _planets.Add(obj.GetComponent<Planet>());
         }
         focusPlanet(_currentPlanet);
+        _colorSliderImage = _colorSlider.gameObject.transform.Find("Fill Area").Find("Fill").GetComponent<Image>();
+        _colorSliderImage2 = _colorSlider.gameObject.transform.Find("Background").GetComponent<Image>();
+        changeColor();
     }
 
     private void onOctreeCreated_ALL(MC_Octree octree)
@@ -85,19 +101,27 @@ public class CameraController : MonoBehaviour
     void Update()
     {
         _drawSphere.SetActive(false);
-        if (_state == CameraControllerState.Rise || _state == CameraControllerState.Lower) {
+        if (_state == CameraControllerState.Rise || _state == CameraControllerState.Lower || _state == CameraControllerState.Draw) {
             Ray ray = _camera.ScreenPointToRay(_mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f))
             {
                 _drawSphere.transform.localScale = new Vector3(_sizeSlider.value, _sizeSlider.value, _sizeSlider.value);
                 _drawSphere.SetActive(true);
                 _drawSphere.transform.position = hit.point;
+
+                if (_mouseClicked) 
+                {
+                    if (_state == CameraControllerState.Rise) editPlanet(hit.point, -1f);
+                    if (_state == CameraControllerState.Lower) editPlanet(hit.point, 1f);
+                    if (_state == CameraControllerState.Draw) editPlanetColor(hit.point);
+                }
             }
         }
     }
 
     void zoom(float zoom)
     {
+        if (_CamState != CameraControllerState_Cam.Orbit) return;
         if (zoom < 0 && _cameraDistancePlanet-zoom/_zoomFactor > _maxCameraDistance) zoom = (_maxCameraDistance-_cameraDistancePlanet)*-_zoomFactor;
         RaycastHit hit;
         if (Physics.Raycast(_camera.transform.position, _camera.transform.forward, out hit, zoom/_zoomFactor+_minCameraDistance))
@@ -110,15 +134,21 @@ public class CameraController : MonoBehaviour
 
     void mouseDelta(Vector2 delta)
     {
-        if (!_mouseClicked) return;
-        if (_state == CameraControllerState.Orbit) {
+        if (!_mouseClickedR) return;
+
+        if (_CamState == CameraControllerState_Cam.Orbit)
+        {
             _mouseDelta = delta*_cameraDistancePlanet/_dragFactor;
             if (Vector3.Dot(_camera.transform.up, Vector3.down) > 0) _mouseDelta.x *= -1;
             _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, Vector3.up, _mouseDelta.x);
             _camera.transform.RotateAround(_planets[_currentPlanet].transform.position, _camera.transform.right, -_mouseDelta.y);
             updateCameraDistance();
         }
-        
+        else if (_CamState == CameraControllerState_Cam.Fly) {
+            _mouseDelta = delta*_cameraDistancePlanet/_dragFactor;
+            _camera.transform.RotateAround(_camera.transform.position, Vector3.up, _mouseDelta.x/30);
+            _camera.transform.RotateAround(_camera.transform.position, _camera.transform.right, -_mouseDelta.y/30);
+        }
     }
 
     void mousePosition(Vector2 pos)
@@ -132,21 +162,39 @@ public class CameraController : MonoBehaviour
         if (!click) return;
         if (_state == CameraControllerState.Rise && _drawSphere.activeInHierarchy) editPlanet(_drawSphere.transform.position, -1f);
         if (_state == CameraControllerState.Lower && _drawSphere.activeInHierarchy) editPlanet(_drawSphere.transform.position, 1f);
+        if (_state == CameraControllerState.Draw && _drawSphere.activeInHierarchy) editPlanetColor(_drawSphere.transform.position);
+    }
 
+    void mouseClickR(bool click) 
+    {
+        _mouseClickedR = click;
     }
 
     void editPlanet(Vector3 pos, float strength)
     {
         pos = pos - _planets[_currentPlanet].getPosition();
-        _planets[_currentPlanet].editTexture(pos, _sizeSlider.value, strength);
+
+        _planets[_currentPlanet].editTexture(pos, _sizeSlider.value/2, strength);
 		for (int i = 0; i < _octrees.Count; i++)
 		{
 			MC_Octree octree = _octrees[i];
-			if (Helpers.SphereIntersectsBox(_drawSphere.transform.position, _drawSphere.transform.localScale.x, octree.getAbsPosition(), Vector3.one * octree.getSize()))
+			if (Helpers.SphereIntersectsBox(_drawSphere.transform.position, _drawSphere.transform.localScale.x/2, octree.getAbsPosition(), Vector3.one * octree.getSize()))
 			{
 				octree.updateMesh();
 			}
 		}
+    }
+
+    void editPlanetColor(Vector3 pos)
+    {
+        pos = pos - _planets[_currentPlanet].getPosition();
+        _planets[_currentPlanet].editTextureColor(pos, _sizeSlider.value/2, _colorSlider.value);
+    }
+
+    public void changeColor()
+    {
+        _colorSliderImage.color = Color.HSVToRGB(_colorSlider.value, 0.7f, 1);
+        _colorSliderImage2.color = Color.HSVToRGB(_colorSlider.value, 0.7f, 1);
     }
 
     void focusPlanet(int planetIndex)
@@ -176,12 +224,6 @@ public class CameraController : MonoBehaviour
         _inputController.Disable();
     }
 
-    public void OnButtonCam(Button btn) {
-        _state = CameraControllerState.Orbit;
-        enableAllBtns();
-        btn.interactable = false;
-    }
-
     public void OnButtonRise(Button btn) {
         _state = CameraControllerState.Rise;
         enableAllBtns();
@@ -190,6 +232,12 @@ public class CameraController : MonoBehaviour
 
     public void OnButtonLower(Button btn) {
         _state = CameraControllerState.Lower;
+        enableAllBtns();
+        btn.interactable = false;
+    }
+
+    public void OnButtonColor(Button btn) {
+        _state = CameraControllerState.Draw;
         enableAllBtns();
         btn.interactable = false;
     }

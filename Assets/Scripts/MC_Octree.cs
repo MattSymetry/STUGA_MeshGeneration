@@ -81,7 +81,7 @@ public class MC_Octree : MonoBehaviour
 		};
         _mesh.MarkDynamic();
         _meshFilter.mesh = _mesh;
-        _meshCollider.sharedMesh = _mesh;
+        //_meshCollider.sharedMesh = _mesh;
         _meshRenderer.enabled = true;
         _meshCollider.enabled = true;
         EventManager.current.OctreeCreated_ALL(this);
@@ -165,7 +165,7 @@ public class MC_Octree : MonoBehaviour
 			name = "Procedural Mesh"
 		};
         _meshFilter.mesh = _mesh;
-        _meshCollider.sharedMesh = _mesh;
+        //_meshCollider.sharedMesh = _mesh;
 
         _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
     }
@@ -186,11 +186,13 @@ public class MC_Octree : MonoBehaviour
 
     public void updateMesh() 
     {
+        if (!meshIsDone) return;
         generateMesh();
     }
 
     private void marchCubes()
     {
+        meshIsDone = false;
         int numPoints = _resolution.x * _resolution.y * _resolution.z;
 		int numVoxelsPerAxis = _resolution.x - 1;
 		int numVoxels = numVoxelsPerAxis * numVoxelsPerAxis * numVoxelsPerAxis;
@@ -278,7 +280,7 @@ public class MC_Octree : MonoBehaviour
             }
             _mesh.RecalculateBounds();
             _mesh.Optimize();
-            _meshCollider.sharedMesh = _mesh;
+            
             vertexDataArray.Dispose();
             triangleBuffer.Release ();
             triCountBuffer.Release ();
@@ -287,6 +289,10 @@ public class MC_Octree : MonoBehaviour
             if (numVertices < 3) {
                 _hasMesh = false;
                 EventManager.current.OctreeDestroyed(this);
+            }
+            else {
+                _hasMesh = true;
+                _meshCollider.sharedMesh = _mesh;
             }
         }
         else

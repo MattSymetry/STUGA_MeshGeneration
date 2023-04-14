@@ -16,8 +16,8 @@ public class MC_Camera_Agent : MonoBehaviour
 
     void Awake()
     {
-        EventManager.current.onOctreeCreated_ALL += onOctreeCreated;
-        EventManager.current.onOctreeDestroyed_ALL += onOctreeDestroyed;
+        EventManager.current.onOctreeCreated += onOctreeCreated;
+        EventManager.current.onOctreeDestroyed += onOctreeDestroyed;
     }
 
     void Update()

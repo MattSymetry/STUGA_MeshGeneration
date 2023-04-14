@@ -10,6 +10,7 @@ public class Planet : MonoBehaviour
     [SerializeField] private ComputeShader _computeShader;
     [SerializeField] private ComputeShader _computeShaderTexture;
     [SerializeField] private ComputeShader _computeShaderEditTexture;
+    [SerializeField] private ComputeShader _computeShaderEditTextureColor;
     private float _mass;
     private float _gravity;
     private Vector3 _position;
@@ -36,6 +37,7 @@ public class Planet : MonoBehaviour
         _position = transform.position;
         _textureResolution = _size.x;
         generateRenderTexture(_textureResolution);
+        _mat = new Material(_mat);
         _mat.SetTexture("_Texture3D", _renderTexture);
         _mat.SetVector("_MinMaxTextureSize", new Vector2(-_size.x/2, _size.x/2));
         GameObject chunkObj = ObjectPool.SharedInstance.GetPooledObject();
@@ -120,13 +122,23 @@ public class Planet : MonoBehaviour
     {
         int textureSize = _renderTexture.width;
         position = position + new Vector3(textureSize/2, textureSize/2, textureSize/2);
-        Debug.Log(position);
         _computeShaderEditTexture.SetTexture(0, "renderTexture", _renderTexture);
         _computeShaderEditTexture.SetInt("textureSize", textureSize);
         _computeShaderEditTexture.SetFloat("radius", radius);
         _computeShaderEditTexture.SetFloat("strength", strength);
         _computeShaderEditTexture.SetVector("position", position);
         _computeShaderEditTexture.Dispatch(0, _textureResolution/threadCount, _textureResolution/threadCount, _textureResolution/threadCount);
-        Debug.Log("END editTexture");
+    }
+
+    public void editTextureColor(Vector3 position, float radius, float color) {
+        int textureSize = _renderTexture.width;
+        position = position + new Vector3(textureSize/2, textureSize/2, textureSize/2);
+        _computeShaderEditTextureColor.SetTexture(0, "renderTexture", _renderTexture);
+        _computeShaderEditTextureColor.SetInt("textureSize", textureSize);
+        _computeShaderEditTextureColor.SetFloat("radius", radius);
+        _computeShaderEditTextureColor.SetFloat("color", color);
+        _computeShaderEditTextureColor.SetVector("position", position);
+        _computeShaderEditTextureColor.Dispatch(0, _textureResolution/threadCount, _textureResolution/threadCount, _textureResolution/threadCount);
+        _mat.SetTexture("_Texture3D", _renderTexture);
     }
 }

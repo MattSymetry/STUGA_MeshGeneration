@@ -34,10 +34,7 @@ void CSMain (int3 id : SV_DispatchThreadID)
 	float density = calculateDensity(id);
 
 
-    float g = 0;
-    if (id.x > textureSize/2.0) {
-        g = 1;
-    }
+    float g = 0.34;
 
 	renderTexture[id] = float2(density, g);
 

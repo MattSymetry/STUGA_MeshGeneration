@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 5528222135032943488}
   m_Layer: 0
   m_Name: Planet
-  m_TagString: Untagged
+  m_TagString: Planet
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -47,13 +47,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed81231dce9884797b2df82f199c7150, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _mat: {fileID: 2100000, guid: 7bd8c1cc9553c491793df2cf6b013070, type: 2}
+  _mat: {fileID: 2100000, guid: 83bb6e6bd9d964fbca30bf080138b644, type: 2}
   _size: {x: 512, y: 512, z: 512}
   _radius: 200
   _computeShader: {fileID: 7200000, guid: 3fea8589993bb485087c4e52e7fb588c, type: 3}
   _computeShaderTexture: {fileID: 7200000, guid: d707ab8cd22994e1fa36e615977fcfb3,
     type: 3}
   _computeShaderEditTexture: {fileID: 7200000, guid: bf167e8c4fa274aae94fff401b10f614,
+    type: 3}
+  _computeShaderEditTextureColor: {fileID: 7200000, guid: 04e10a28cfadcc34e8c779f319204e3d,
     type: 3}
   _renderTexture: {fileID: 0}
 --- !u!64 &812312127336954544
@@ -64,9 +66,17 @@ MeshCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 69676871819323059}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 4
+  serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
