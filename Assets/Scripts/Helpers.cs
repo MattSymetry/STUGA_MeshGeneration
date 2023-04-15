@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using static UnityEngine.Mathf;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public static class Helpers
 {
@@ -42,4 +43,18 @@ public static class Helpers
 		float sqrDstToBox = dx * dx + dy * dy + dz * dz;
 		return sqrDstToBox < sphereRadius * sphereRadius;
 	}
+
+    public static float map(float s, float a1, float a2, float b1, float b2)
+    {
+        return b1 + (s-a1)*(b2-b1)/(a2-a1);
+    }
+
+     public static bool IsPointerOverUIObject(Vector2 mousePosition)
+    {
+        PointerEventData eventDataCurrentPosition = new PointerEventData(EventSystem.current);
+        eventDataCurrentPosition.position = new Vector2(mousePosition.x, mousePosition.y);
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventDataCurrentPosition, results);
+        return results.Count > 0;
+    }
 }

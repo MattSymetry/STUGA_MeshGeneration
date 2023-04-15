@@ -118,7 +118,7 @@ public class Planet : MonoBehaviour
         return PlanetName;
     }
 
-    public void editTexture(Vector3 position, float radius, float strength)
+    public void editTexture(Vector3 position, float radius, float strength, float color)
     {
         int textureSize = _renderTexture.width;
         position = position + new Vector3(textureSize/2, textureSize/2, textureSize/2);
@@ -126,6 +126,7 @@ public class Planet : MonoBehaviour
         _computeShaderEditTexture.SetInt("textureSize", textureSize);
         _computeShaderEditTexture.SetFloat("radius", radius);
         _computeShaderEditTexture.SetFloat("strength", strength);
+        _computeShaderEditTexture.SetFloat("color", color);
         _computeShaderEditTexture.SetVector("position", position);
         _computeShaderEditTexture.Dispatch(0, _textureResolution/threadCount, _textureResolution/threadCount, _textureResolution/threadCount);
     }

@@ -58,7 +58,7 @@ public class MC_Octree : MonoBehaviour
     private NativeArray<Vertex> vertexDataArray;
     private bool meshIsDone = false;
 
-    private bool _hasMesh = true;
+    [SerializeField]private bool _hasMesh = true;
 
     public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0, bool hasMesh = true)
     {
@@ -82,8 +82,8 @@ public class MC_Octree : MonoBehaviour
         _mesh.MarkDynamic();
         _meshFilter.mesh = _mesh;
         //_meshCollider.sharedMesh = _mesh;
-        _meshRenderer.enabled = true;
-        _meshCollider.enabled = true;
+        //_meshRenderer.enabled = true;
+        //_meshCollider.enabled = true;
         EventManager.current.OctreeCreated_ALL(this);
         if (_hasMesh) 
         {
@@ -138,6 +138,18 @@ public class MC_Octree : MonoBehaviour
         }
     }
 
+    void OnEnable()
+    {
+        _meshCollider.sharedMesh = null;
+        _meshCollider.enabled = false;
+    }
+
+    void OnDisable()
+    {
+        _meshCollider.sharedMesh = null;
+        _meshCollider.enabled = false;
+    }
+
     public void merge()
     {
         if(isDivided)
@@ -147,8 +159,8 @@ public class MC_Octree : MonoBehaviour
             }
             isDivided = false;
             meshIsDone = false;
-            _meshRenderer.enabled = true;
-            _meshCollider.enabled = true;
+            //_meshRenderer.enabled = true;
+            //_meshCollider.enabled = true;
             generateMesh();
         }
     }
@@ -192,6 +204,7 @@ public class MC_Octree : MonoBehaviour
 
     private void marchCubes()
     {
+        if (!gameObject.activeInHierarchy) return;
         meshIsDone = false;
         int numPoints = _resolution.x * _resolution.y * _resolution.z;
 		int numVoxelsPerAxis = _resolution.x - 1;
@@ -223,7 +236,7 @@ public class MC_Octree : MonoBehaviour
 
     IEnumerator readBackTriCount()
     {
-        if(request.done && !request.hasError) 
+        if(request.done && !request.hasError && triCountBuffer != null) 
         {
             int[] vertexCountData = new int[1];
             triCountBuffer.SetData(vertexCountData);
@@ -286,17 +299,21 @@ public class MC_Octree : MonoBehaviour
             triCountBuffer.Release ();
             meshIsDone = true;
 
-            if (numVertices < 3) {
+            if (_mesh.vertexCount < 3) {
                 _hasMesh = false;
                 EventManager.current.OctreeDestroyed(this);
             }
             else {
+                if (!_hasMesh)EventManager.current.OctreeCreated(this);
                 _hasMesh = true;
                 _meshCollider.sharedMesh = _mesh;
+                _meshRenderer.enabled = true;
+                _meshCollider.enabled = true;
             }
         }
         else
         {
+            if (triCountBuffer == null) yield break;
             yield return new WaitForEndOfFrame();
             StartCoroutine(readBackTriCount());
         }
@@ -323,15 +340,15 @@ public class MC_Octree : MonoBehaviour
 
     void destruction()
     {
-        this.gameObject.SetActive(false);
         EventManager.current.OctreeDestroyed_ALL(this);
         EventManager.current.OctreeDestroyed(this);
-        _mesh.Clear();
         _meshCollider.sharedMesh = null;
         _meshFilter.mesh = null;
+        _mesh.Clear();
         if (vertexDataArray.IsCreated) vertexDataArray.Dispose();
         if (triangleBuffer != null) triangleBuffer.Release ();
         if (triCountBuffer != null) triCountBuffer.Release ();
+        this.gameObject.SetActive(false);
     }
 
 }

@@ -6,6 +6,7 @@ float3 position;
 float radius;
 float deltaTime;
 float strength;
+float color;
 
 // return smooth value between 0 and 1 (0 when t = minVal, 1 when t = maxVal)
 float smoothstep(float minVal, float maxVal, float t) {
@@ -32,6 +33,6 @@ void CSMain (int3 id : SV_DispatchThreadID)
 	if (sqrDst <= radius * radius) {
 		float dst = sqrt(sqrDst);
 		float brushWeight = 1-smoothstep(radius * 0.7, radius, dst);
-		renderTexture[id] += float2(strength * deltaTime * brushWeight,0);
+		renderTexture[id] = float2(renderTexture[id].x + (strength * deltaTime * brushWeight), color);
 	}
 }

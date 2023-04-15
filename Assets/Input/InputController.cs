@@ -38,7 +38,7 @@ public partial class @InputController: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": ""MouseDelta"",
-                    ""type"": ""Value"",
+                    ""type"": ""PassThrough"",
                     ""id"": ""866a426e-d7ba-4a79-846a-6eeaa219a601"",
                     ""expectedControlType"": ""Vector2"",
                     ""processors"": """",
@@ -68,6 +68,33 @@ public partial class @InputController: IInputActionCollection2, IDisposable
                     ""type"": ""Button"",
                     ""id"": ""896c7e0f-ff3f-4c7a-8b59-9ffa79518e4f"",
                     ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""MovementFly"",
+                    ""type"": ""PassThrough"",
+                    ""id"": ""14d03ebf-ec45-4789-8385-d6c3b8b5e3a7"",
+                    ""expectedControlType"": ""Vector3"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""FastFly"",
+                    ""type"": ""Button"",
+                    ""id"": ""1b9f089e-214a-46d8-91ce-05bff7429834"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""RotateFly"",
+                    ""type"": ""PassThrough"",
+                    ""id"": ""57e7d7dd-a486-4868-b4ea-7ebfe2ae80d8"",
+                    ""expectedControlType"": ""Axis"",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -227,6 +254,127 @@ public partial class @InputController: IInputActionCollection2, IDisposable
                     ""action"": ""RightClick"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""3D Vector"",
+                    ""id"": ""348dd72f-fe01-4a85-a4e1-9ee8b3b57d0a"",
+                    ""path"": ""3DVector"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""MovementFly"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""up"",
+                    ""id"": ""7eac5600-34e1-43a7-bf6e-8694533f8299"",
+                    ""path"": ""<Keyboard>/space"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MovementFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""down"",
+                    ""id"": ""9222e1f4-f806-4741-9b07-30c098a122ac"",
+                    ""path"": ""<Keyboard>/ctrl"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MovementFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""left"",
+                    ""id"": ""df1d145d-37d7-472b-a5fd-95da846aafe2"",
+                    ""path"": ""<Keyboard>/a"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MovementFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""right"",
+                    ""id"": ""0d119918-6310-4cfe-ad54-e93e31e1935e"",
+                    ""path"": ""<Keyboard>/d"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MovementFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""forward"",
+                    ""id"": ""ce19a0bc-ec36-465f-919f-973886fe452c"",
+                    ""path"": ""<Keyboard>/w"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MovementFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""backward"",
+                    ""id"": ""1801a8b2-d71b-4928-be62-8c810c2d6fa9"",
+                    ""path"": ""<Keyboard>/s"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""MovementFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""91f411b7-cc27-432e-a4fb-e5ecff436ddb"",
+                    ""path"": ""<Keyboard>/shift"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""FastFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""1D Axis"",
+                    ""id"": ""b91a8781-10e7-4421-bd96-66a55fe23e62"",
+                    ""path"": ""1DAxis"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""RotateFly"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""negative"",
+                    ""id"": ""f5d587a3-02ec-4681-b435-ee199868006e"",
+                    ""path"": ""<Keyboard>/q"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""RotateFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""positive"",
+                    ""id"": ""da57d89c-0054-4a3f-91cf-b17e1945c8e7"",
+                    ""path"": ""<Keyboard>/e"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""RotateFly"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
                 }
             ]
         }
@@ -262,6 +410,9 @@ public partial class @InputController: IInputActionCollection2, IDisposable
         m_FocusMode_LeftClick = m_FocusMode.FindAction("LeftClick", throwIfNotFound: true);
         m_FocusMode_MousePosition = m_FocusMode.FindAction("MousePosition", throwIfNotFound: true);
         m_FocusMode_RightClick = m_FocusMode.FindAction("RightClick", throwIfNotFound: true);
+        m_FocusMode_MovementFly = m_FocusMode.FindAction("MovementFly", throwIfNotFound: true);
+        m_FocusMode_FastFly = m_FocusMode.FindAction("FastFly", throwIfNotFound: true);
+        m_FocusMode_RotateFly = m_FocusMode.FindAction("RotateFly", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -328,6 +479,9 @@ public partial class @InputController: IInputActionCollection2, IDisposable
     private readonly InputAction m_FocusMode_LeftClick;
     private readonly InputAction m_FocusMode_MousePosition;
     private readonly InputAction m_FocusMode_RightClick;
+    private readonly InputAction m_FocusMode_MovementFly;
+    private readonly InputAction m_FocusMode_FastFly;
+    private readonly InputAction m_FocusMode_RotateFly;
     public struct FocusModeActions
     {
         private @InputController m_Wrapper;
@@ -337,6 +491,9 @@ public partial class @InputController: IInputActionCollection2, IDisposable
         public InputAction @LeftClick => m_Wrapper.m_FocusMode_LeftClick;
         public InputAction @MousePosition => m_Wrapper.m_FocusMode_MousePosition;
         public InputAction @RightClick => m_Wrapper.m_FocusMode_RightClick;
+        public InputAction @MovementFly => m_Wrapper.m_FocusMode_MovementFly;
+        public InputAction @FastFly => m_Wrapper.m_FocusMode_FastFly;
+        public InputAction @RotateFly => m_Wrapper.m_FocusMode_RotateFly;
         public InputActionMap Get() { return m_Wrapper.m_FocusMode; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -361,6 +518,15 @@ public partial class @InputController: IInputActionCollection2, IDisposable
             @RightClick.started += instance.OnRightClick;
             @RightClick.performed += instance.OnRightClick;
             @RightClick.canceled += instance.OnRightClick;
+            @MovementFly.started += instance.OnMovementFly;
+            @MovementFly.performed += instance.OnMovementFly;
+            @MovementFly.canceled += instance.OnMovementFly;
+            @FastFly.started += instance.OnFastFly;
+            @FastFly.performed += instance.OnFastFly;
+            @FastFly.canceled += instance.OnFastFly;
+            @RotateFly.started += instance.OnRotateFly;
+            @RotateFly.performed += instance.OnRotateFly;
+            @RotateFly.canceled += instance.OnRotateFly;
         }
 
         private void UnregisterCallbacks(IFocusModeActions instance)
@@ -380,6 +546,15 @@ public partial class @InputController: IInputActionCollection2, IDisposable
             @RightClick.started -= instance.OnRightClick;
             @RightClick.performed -= instance.OnRightClick;
             @RightClick.canceled -= instance.OnRightClick;
+            @MovementFly.started -= instance.OnMovementFly;
+            @MovementFly.performed -= instance.OnMovementFly;
+            @MovementFly.canceled -= instance.OnMovementFly;
+            @FastFly.started -= instance.OnFastFly;
+            @FastFly.performed -= instance.OnFastFly;
+            @FastFly.canceled -= instance.OnFastFly;
+            @RotateFly.started -= instance.OnRotateFly;
+            @RotateFly.performed -= instance.OnRotateFly;
+            @RotateFly.canceled -= instance.OnRotateFly;
         }
 
         public void RemoveCallbacks(IFocusModeActions instance)
@@ -413,5 +588,8 @@ public partial class @InputController: IInputActionCollection2, IDisposable
         void OnLeftClick(InputAction.CallbackContext context);
         void OnMousePosition(InputAction.CallbackContext context);
         void OnRightClick(InputAction.CallbackContext context);
+        void OnMovementFly(InputAction.CallbackContext context);
+        void OnFastFly(InputAction.CallbackContext context);
+        void OnRotateFly(InputAction.CallbackContext context);
     }
 }
