@@ -64,6 +64,7 @@ public class CameraController : MonoBehaviour
     private float _speedFly = 10f;
 
     private float _rotateFly = 0f;
+    [SerializeField] private GameObject _sunLight;
 
     private List<MC_Octree> _octrees = new List<MC_Octree>();
 
@@ -151,6 +152,26 @@ public class CameraController : MonoBehaviour
             _camera.transform.position += _camera.transform.forward * _movementFly.z * Time.deltaTime * _speedFly;
             _camera.transform.position += _camera.transform.right * _movementFly.x * Time.deltaTime * _speedFly;
             _camera.transform.position += _camera.transform.up * _movementFly.y * Time.deltaTime * _speedFly;
+            getClosestPlanet();
+        }
+    }
+
+    void getClosestPlanet()
+    {
+        float minDistance = float.MaxValue;
+        int closestPlanet = _currentPlanet;
+        for (int i = 0; i < _planets.Count; i++)
+        {
+            float distance = Vector3.Distance(_camera.transform.position, _planets[i].transform.position);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                closestPlanet = i;
+            }
+        }
+        if (closestPlanet != _currentPlanet)
+        {
+            focusPlanet(closestPlanet, false);
         }
     }
 
@@ -264,15 +285,19 @@ public class CameraController : MonoBehaviour
         _circleImage.rectTransform.sizeDelta = new Vector2(size, size);
     }
 
-    void focusPlanet(int planetIndex)
+    void focusPlanet(int planetIndex, bool force = true)
     {
         _currentPlanet = planetIndex;
         _camera.transform.parent = _planets[_currentPlanet].transform;
-        _camera.transform.position = _planets[_currentPlanet].getPosition() + new Vector3(_planets[_currentPlanet].getRadius()*4f,0,0);
-        _camera.transform.LookAt(_planets[_currentPlanet].getPosition());
+        if (force) 
+        {
+            _camera.transform.position = _planets[_currentPlanet].getPosition() + new Vector3(_planets[_currentPlanet].getRadius()*4f,0,0);
+            _camera.transform.LookAt(_planets[_currentPlanet].getPosition());
+        }
         _maxCameraDistance = _planets[_currentPlanet].getTextureSize()*2;
         updateCameraDistance();
         _planetName.SetText(_planets[_currentPlanet].getName());
+        _sunLight.transform.LookAt(_planets[_currentPlanet].getPosition());
     }
 
     void updateCameraDistance()

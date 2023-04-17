@@ -75,7 +75,7 @@ void GetAllLights_float(float3 positionWS, float3 normalWS, float3 viewDirection
 			if (!useFalloff) {distanceAtten += 0.1;}
 		}
 
-		half shadowAtten = AdditionalLightRealtimeShadow(perObjectLightIndex, positionWS);
+		half shadowAtten = AdditionalLightRealtimeShadow(perObjectLightIndex, positionWS, direction);
 		//half shadowAtten = AdditionalLightRealtimeShadow(lightI, positionWS, direction);
 		//half shadowAtten = light.shadowAttenuation;
 		float3 lambertTmp = 0;
