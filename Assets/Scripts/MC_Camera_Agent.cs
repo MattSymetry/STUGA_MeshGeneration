@@ -30,7 +30,11 @@ public class MC_Camera_Agent : MonoBehaviour
         for (int i = 0; i < _octrees.Count; i++)
         {
             octree = _octrees[i];
-            if (!octree.gameObject.activeInHierarchy || !octree.hasMesh()) continue;
+            if (!octree.gameObject.activeInHierarchy || !octree.hasMesh())
+            {
+                _octrees.Remove(octree);
+                continue;
+            }
             currOctreeSize = octree.getSize();
             currOctreeDistance = Vector3.Distance(octree.getAbsPosition(), transform.position);
             if (currOctreeSize > Helpers.minChunkSize && currOctreeDistance < currOctreeSize*8 && !octree.getIsDivided())
@@ -38,7 +42,7 @@ public class MC_Camera_Agent : MonoBehaviour
                 octree.divide();
                 break;
             }
-            else if (currOctreeDistance > currOctreeSize*10 && octree.getIsDivided())
+            else if ((currOctreeDistance > currOctreeSize*8 && octree.getIsDivided()))
             {
                 octree.merge();
                 break;

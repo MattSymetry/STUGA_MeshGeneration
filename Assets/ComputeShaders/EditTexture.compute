@@ -33,6 +33,6 @@ void CSMain (int3 id : SV_DispatchThreadID)
 	if (sqrDst <= radius * radius) {
 		float dst = sqrt(sqrDst);
 		float brushWeight = 1-smoothstep(radius * 0.7, radius, dst);
-		renderTexture[id] = float2(renderTexture[id].x + (strength * deltaTime * brushWeight), color);
+		renderTexture[id] = float2(renderTexture[id].x + (strength * deltaTime * brushWeight), renderTexture[id].y);
 	}
 }

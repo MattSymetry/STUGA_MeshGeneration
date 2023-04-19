@@ -51,6 +51,7 @@ public class CameraController : MonoBehaviour
     private Image _colorSliderImage;
     [SerializeField] private Image _panelBtnImage;
     [SerializeField] private Image _panelViewImage;
+    [SerializeField] private GameObject _optionsPanel;
 
     [SerializeField] private GameObject _drawSphere;
     private Material _drawSphereMaterial;
@@ -59,11 +60,12 @@ public class CameraController : MonoBehaviour
     private Vector2 _mousePosition = Vector2.zero;
 
     private Vector3 _movementFly = Vector3.zero;
-    private float _speedFlyFast = 100f;
+    private float _speedFlyFast = 500f;
     private float _speedFlyNormal = 30f;
     private float _speedFly = 10f;
 
     private float _rotateFly = 0f;
+
     [SerializeField] private GameObject _sunLight;
 
     private List<MC_Octree> _octrees = new List<MC_Octree>();
@@ -82,6 +84,7 @@ public class CameraController : MonoBehaviour
         _inputController.FocusMode.FastFly.performed += ctx => fastFly(true);
         _inputController.FocusMode.FastFly.canceled += ctx => fastFly(false);
         _inputController.FocusMode.RotateFly.performed += ctx => rotateFly(ctx.ReadValue<float>());
+        _inputController.FocusMode.Options.performed += ctx => options();
 
         EventManager.current.onOctreeCreated_ALL += onOctreeCreated_ALL;
         EventManager.current.onOctreeDestroyed_ALL += onOctreeDestroyed_ALL;
@@ -203,8 +206,8 @@ public class CameraController : MonoBehaviour
         }
         else if (_CamState == CameraControllerState_Cam.Fly) {
             _mouseDelta = delta*_cameraDistancePlanet/_dragFactor;
-            _camera.transform.RotateAround(_camera.transform.position,  _camera.transform.up, _mouseDelta.x/30);
-            _camera.transform.RotateAround(_camera.transform.position, _camera.transform.right, -_mouseDelta.y/30);
+            _camera.transform.RotateAround(_camera.transform.position,  _camera.transform.up, _mouseDelta.x/20);
+            _camera.transform.RotateAround(_camera.transform.position, _camera.transform.right, -_mouseDelta.y/20);
         }
     }
 
@@ -255,6 +258,7 @@ public class CameraController : MonoBehaviour
 		for (int i = 0; i < _octrees.Count; i++)
 		{
 			MC_Octree octree = _octrees[i];
+            if (!octree.gameObject.activeSelf || !octree.meshDone()) continue;
 			if (Helpers.SphereIntersectsBox(_drawSphere.transform.position, _drawSphere.transform.localScale.x/2 + 5, octree.getAbsPosition(), Vector3.one * octree.getSize()))
 			{
                 if (!octree.getIsDivided()) {
@@ -291,8 +295,8 @@ public class CameraController : MonoBehaviour
         _camera.transform.parent = _planets[_currentPlanet].transform;
         if (force) 
         {
-            _camera.transform.position = _planets[_currentPlanet].getPosition() + new Vector3(_planets[_currentPlanet].getRadius()*4f,0,0);
-            _camera.transform.LookAt(_planets[_currentPlanet].getPosition());
+            _camera.transform.position = _planets[_currentPlanet].getPosition() + _planets[_currentPlanet].getPosition().normalized * 300f + Vector3.up * 400f;
+            _camera.transform.LookAt(Vector3.zero);
         }
         _maxCameraDistance = _planets[_currentPlanet].getTextureSize()*2;
         updateCameraDistance();
@@ -342,5 +346,25 @@ public class CameraController : MonoBehaviour
         foreach (Button btn in _interactionButtons) {
             btn.interactable = true;
         }
+    }
+
+    public Planet getPlanet() {
+        return _planets[_currentPlanet];
+    }
+
+    public void options() {
+        _optionsPanel.SetActive(!_optionsPanel.activeSelf);
+        if (_optionsPanel.activeSelf) 
+            Time.timeScale = 0;
+        else 
+            Time.timeScale = 1;
+    }
+
+    public void quit() {
+        Application.Quit();
+    }
+
+    public void backMenu() {
+        UnityEngine.SceneManagement.SceneManager.LoadScene("Menu");
     }
 }

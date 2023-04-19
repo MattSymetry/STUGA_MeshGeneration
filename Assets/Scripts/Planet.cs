@@ -11,11 +11,14 @@ public class Planet : MonoBehaviour
     [SerializeField] private ComputeShader _computeShaderTexture;
     [SerializeField] private ComputeShader _computeShaderEditTexture;
     [SerializeField] private ComputeShader _computeShaderEditTextureColor;
+    [SerializeField] private float _seed = 0f;
     private float _mass;
     private float _gravity;
     private Vector3 _position;
     private Vector3 _velocity;
     private Vector3 _rotationalVelocity;
+
+    private GameObject chunkObj;
 
     //private float noiseHeightMultiplier = 20f;
     //private float noiseScale = 1f;
@@ -32,6 +35,8 @@ public class Planet : MonoBehaviour
 
     void Start()
     {
+        _radius = Random.Range(130f, 260f);
+        _seed = Random.Range(-10000.0f, 10000.0f);
         //_maxLOD = Mathf.floor(_size / Helpers.minChunkSize);
         PlanetName += " "+transform.position.x.ToString();
         _position = transform.position;
@@ -40,12 +45,12 @@ public class Planet : MonoBehaviour
         _mat = new Material(_mat);
         _mat.SetTexture("_Texture3D", _renderTexture);
         _mat.SetVector("_MinMaxTextureSize", new Vector2(-_size.x/2, _size.x/2));
-        GameObject chunkObj = ObjectPool.SharedInstance.GetPooledObject();
+         chunkObj = ObjectPool.SharedInstance.GetPooledObject();
         if (chunkObj != null) 
         {
+            chunkObj.transform.parent = transform;
             chunkObj.SetActive(true);
         }
-        chunkObj.transform.parent = transform;
         _octree = chunkObj.GetComponent<MC_Octree>();            
         _octree.initiate(_position, _size, Helpers.getChunckRes(_size), _mat, this, _computeShader, 1, true);
     }
@@ -70,6 +75,8 @@ public class Planet : MonoBehaviour
         _computeShaderTexture.SetTexture(0, "renderTexture", _renderTexture);
 		_computeShaderTexture.SetInt("textureSize", textureSize);
 		_computeShaderTexture.SetFloat("planetSize", _radius);
+        _computeShaderTexture.SetFloat("seed", _seed);
+        _computeShaderTexture.SetFloat("noiseScale", Random.Range(0.01f, 0.03f));
 
         _computeShaderTexture.Dispatch(0, textureSize/threadCount, textureSize/threadCount, textureSize/threadCount);
 
@@ -140,6 +147,20 @@ public class Planet : MonoBehaviour
         _computeShaderEditTextureColor.SetFloat("color", color);
         _computeShaderEditTextureColor.SetVector("position", position);
         _computeShaderEditTextureColor.Dispatch(0, _textureResolution/threadCount, _textureResolution/threadCount, _textureResolution/threadCount);
+        _mat.SetTexture("_Texture3D", _renderTexture);
+    }
+
+    public Material getMaterial()
+    {
+        return _mat;
+    }
+
+    public void hide() {
+        _renderTexture.Release();
+        _seed = Random.Range(-10000.0f, 10000.0f);
+        _radius = Random.Range(130f, 260f);
+        generateRenderTexture(_textureResolution);
+        chunkObj.GetComponent<MC_Octree>().redo();
         _mat.SetTexture("_Texture3D", _renderTexture);
     }
 }

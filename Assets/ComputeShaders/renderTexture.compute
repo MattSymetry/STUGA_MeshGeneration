@@ -4,8 +4,47 @@
 RWTexture3D<float2> renderTexture;
 int textureSize;
 float planetSize;
-float noiseScale;
-float noiseHeightMultiplier;
+float seed;
+float noiseScale; // 0.01-0.03
+
+float3 random3D(int3 n)
+{
+    return frac(sin(dot(float3(n.x, n.y, n.z), float3(127.1, 311.7, 742.3))) * (43758.5453 + seed));
+}
+
+float PerlinNoise3D(float3 p, float scale)
+{
+    // Scale the position
+    p *= scale;
+    
+    // Calculate the integer and fractional parts of the position
+    int3 i = floor(p);
+    float3 f = frac(p);
+    
+    // Calculate the influence of the eight surrounding points in the grid
+    float3 u = f * f * (3.0 - 2.0 * f);
+    float3 g000 = random3D(i);
+    float3 g100 = random3D(i + int3(1, 0, 0));
+    float3 g010 = random3D(i + int3(0, 1, 0));
+    float3 g110 = random3D(i + int3(1, 1, 0));
+    float3 g001 = random3D(i + int3(0, 0, 1));
+    float3 g101 = random3D(i + int3(1, 0, 1));
+    float3 g011 = random3D(i + int3(0, 1, 1));
+    float3 g111 = random3D(i + int3(1, 1, 1));
+    float3 n000 = dot(g000, f);
+    float3 n100 = dot(g100, f - float3(1, 0, 0));
+    float3 n010 = dot(g010, f - float3(0, 1, 0));
+    float3 n110 = dot(g110, f - float3(1, 1, 0));
+    float3 n001 = dot(g001, f - float3(0, 0, 1));
+    float3 n101 = dot(g101, f - float3(1, 0, 1));
+    float3 n011 = dot(g011, f - float3(0, 1, 1));
+    float3 n111 = dot(g111, f - float3(1, 1, 1));
+    float3 n = lerp(lerp(lerp(n000, n100, u.x), lerp(n010, n110, u.x), u.y),
+                    lerp(lerp(n001, n101, u.x), lerp(n011, n111, u.x), u.y), u.z);
+    
+    // Return the final noise value
+    return (n.x + n.y + n.z) * 0.16666666667;
+}
 
 float calculateDensity(int3 cell) {
 	float3 worldPos = ((cell / float(textureSize-1.0)) - 0.5) * float(textureSize-1.0);
@@ -18,8 +57,7 @@ float calculateDensity(int3 cell) {
 	float density = length(worldPos) / (maxD + fudge) - 0.5;
 
 	// Noise
-    //float noise = (snoise(worldPos/textureSize * 0.3));
-	//density += noise;
+	density = PerlinNoise3D(worldPos, noiseScale) + 2.5*(length(worldPos) / (maxD + fudge) - 0.5);
 
 	return density;
 }
@@ -34,7 +72,7 @@ void CSMain (int3 id : SV_DispatchThreadID)
 	float density = calculateDensity(id);
 
 
-    float g = 0.34;
+    float g = PerlinNoise3D(id, noiseScale) + seed/10000.0;
 
 	renderTexture[id] = float2(density, g);
 

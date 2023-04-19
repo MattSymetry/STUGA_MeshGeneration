@@ -35,7 +35,7 @@ struct Triangle {
 public class MC_Octree : MonoBehaviour
 {
     private Material _mat;
-    private Planet _planet;
+    [SerializeField]private Planet _planet;
     private MeshFilter _meshFilter;
     private MeshRenderer _meshRenderer;
     private MeshCollider _meshCollider;
@@ -56,9 +56,10 @@ public class MC_Octree : MonoBehaviour
     private ComputeBuffer triangleBuffer;
     private ComputeBuffer triCountBuffer;
     private NativeArray<Vertex> vertexDataArray;
-    private bool meshIsDone = false;
+    [SerializeField]private bool meshIsDone = false;
 
     [SerializeField]private bool _hasMesh = true;
+    private bool _merging = false;
 
     public void initiate(Vector3 position, Vector3 size, Vector3Int resolution, Material mat, Planet planet, ComputeShader shader, int hirarchyLevel = 0, bool hasMesh = true)
     {
@@ -81,15 +82,17 @@ public class MC_Octree : MonoBehaviour
 		};
         _mesh.MarkDynamic();
         _meshFilter.mesh = _mesh;
-        //_meshCollider.sharedMesh = _mesh;
-        //_meshRenderer.enabled = true;
-        //_meshCollider.enabled = true;
         EventManager.current.OctreeCreated_ALL(this);
         if (_hasMesh) 
         {
             EventManager.current.OctreeCreated(this);
             generateMesh();
         }
+    }
+
+    public Planet getPlanet() 
+    {
+        return _planet;
     }
 
     public bool meshDone() 
@@ -105,12 +108,12 @@ public class MC_Octree : MonoBehaviour
                 GameObject chunkObj = ObjectPool.SharedInstance.GetPooledObject();
                 if (chunkObj != null) 
                 {
+                    chunkObj.transform.parent = transform.parent;
                     chunkObj.SetActive(true);
+                    MC_Octree chunk = chunkObj.GetComponent<MC_Octree>();
+                    chunk.initiate((_position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1, _hasMesh);
+                    _chunks[i] = chunk;
                 }
-                chunkObj.transform.parent = transform;
-                MC_Octree chunk = chunkObj.GetComponent<MC_Octree>();
-                chunk.initiate((_position + Helpers.multiplyVecs(_size, Helpers.NeighbourTransforms[i])), _size/2, _resolution, _mat, _planet, _computeShader, hirarchyLevel+1, _hasMesh);
-                _chunks[i] = chunk;
             }
             isDivided = true;
             StartCoroutine(allChildrenDone());
@@ -128,8 +131,10 @@ public class MC_Octree : MonoBehaviour
         }
         if (done) 
         {
-            _meshRenderer.enabled = false;
+            _meshCollider.sharedMesh = null;
             _meshCollider.enabled = false;
+            _meshRenderer.enabled = false;
+            _meshFilter.mesh = null;
         }
         else 
         {
@@ -140,27 +145,27 @@ public class MC_Octree : MonoBehaviour
 
     void OnEnable()
     {
-        _meshCollider.sharedMesh = null;
-        _meshCollider.enabled = false;
+        _planet = transform.parent.GetComponent<Planet>();
     }
 
     void OnDisable()
     {
+        _hasMesh = false;
         _meshCollider.sharedMesh = null;
         _meshCollider.enabled = false;
+        _meshRenderer.enabled = false;
+        _meshFilter.mesh = null;
     }
 
     public void merge()
     {
         if(isDivided)
         {
+            meshIsDone = false;
+            isDivided = false;
             for (int i = 0; i < 8; i++) {
                 _chunks[i].destruction();
             }
-            isDivided = false;
-            meshIsDone = false;
-            //_meshRenderer.enabled = true;
-            //_meshCollider.enabled = true;
             generateMesh();
         }
     }
@@ -196,10 +201,24 @@ public class MC_Octree : MonoBehaviour
         marchCubes();
     }
 
+
     public void updateMesh() 
     {
         if (!meshIsDone) return;
         generateMesh();
+    }
+
+    public void redo() {
+        if (isDivided) 
+        {
+            for (int i = 0; i < 8; i++) {
+                _chunks[i].redo();
+            }
+        }
+        else 
+        {
+            updateMesh();
+        }
     }
 
     private void marchCubes()
@@ -217,7 +236,6 @@ public class MC_Octree : MonoBehaviour
         vertexDataArray = new NativeArray<Vertex>();
         int threads = Mathf.CeilToInt ((_resolution.x+1) / (float) threadCount);
 
-        _computeShader.SetTexture(0, "sampleTexture", _planet.getTexture());
         _computeShader.SetInt("textureSize", _planet.getTextureSize());
 		_computeShader.SetInt("resolution", _resolution.x+1);
         _computeShader.SetFloat("stepSize", (_size.x/(_resolution.x)));
@@ -226,6 +244,7 @@ public class MC_Octree : MonoBehaviour
 		_computeShader.SetVector("chunkPos", _position - _planet.getPosition());
         _computeShader.SetVector("chunkSize", _size);
         _computeShader.SetInt("hirarchyLevel", hirarchyLevel);
+        _computeShader.SetTexture(0, "sampleTexture", _planet.getTexture());
 
 		_computeShader.Dispatch(0, threads,threads,threads);
 
@@ -301,11 +320,16 @@ public class MC_Octree : MonoBehaviour
 
             if (_mesh.vertexCount < 3) {
                 _hasMesh = false;
+                _meshCollider.sharedMesh = null;
+                _meshFilter.mesh = null;
+                _meshRenderer.enabled = false;
+                _meshCollider.enabled = false;
                 EventManager.current.OctreeDestroyed(this);
             }
             else {
                 if (!_hasMesh)EventManager.current.OctreeCreated(this);
                 _hasMesh = true;
+                _meshFilter.mesh = _mesh;
                 _meshCollider.sharedMesh = _mesh;
                 _meshRenderer.enabled = true;
                 _meshCollider.enabled = true;
@@ -338,13 +362,17 @@ public class MC_Octree : MonoBehaviour
         EventManager.current.OctreeDestroyed(this);
     }
 
-    void destruction()
+    public void destruction()
     {
         EventManager.current.OctreeDestroyed_ALL(this);
         EventManager.current.OctreeDestroyed(this);
+        transform.parent = null;
+        _meshRenderer.enabled = false;
+        _meshCollider.enabled = false;
         _meshCollider.sharedMesh = null;
         _meshFilter.mesh = null;
         _mesh.Clear();
+        this.gameObject.transform.parent = null;
         if (vertexDataArray.IsCreated) vertexDataArray.Dispose();
         if (triangleBuffer != null) triangleBuffer.Release ();
         if (triCountBuffer != null) triCountBuffer.Release ();

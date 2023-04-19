@@ -98,6 +98,15 @@ public partial class @InputController: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Options"",
+                    ""type"": ""Button"",
+                    ""id"": ""92f68dbf-549b-4ab8-bdef-8de0a7543030"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -375,6 +384,17 @@ public partial class @InputController: IInputActionCollection2, IDisposable
                     ""action"": ""RotateFly"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c48ffc96-7059-40cd-98cc-c977253dd43c"",
+                    ""path"": ""<Keyboard>/escape"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""PC"",
+                    ""action"": ""Options"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -413,6 +433,7 @@ public partial class @InputController: IInputActionCollection2, IDisposable
         m_FocusMode_MovementFly = m_FocusMode.FindAction("MovementFly", throwIfNotFound: true);
         m_FocusMode_FastFly = m_FocusMode.FindAction("FastFly", throwIfNotFound: true);
         m_FocusMode_RotateFly = m_FocusMode.FindAction("RotateFly", throwIfNotFound: true);
+        m_FocusMode_Options = m_FocusMode.FindAction("Options", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -482,6 +503,7 @@ public partial class @InputController: IInputActionCollection2, IDisposable
     private readonly InputAction m_FocusMode_MovementFly;
     private readonly InputAction m_FocusMode_FastFly;
     private readonly InputAction m_FocusMode_RotateFly;
+    private readonly InputAction m_FocusMode_Options;
     public struct FocusModeActions
     {
         private @InputController m_Wrapper;
@@ -494,6 +516,7 @@ public partial class @InputController: IInputActionCollection2, IDisposable
         public InputAction @MovementFly => m_Wrapper.m_FocusMode_MovementFly;
         public InputAction @FastFly => m_Wrapper.m_FocusMode_FastFly;
         public InputAction @RotateFly => m_Wrapper.m_FocusMode_RotateFly;
+        public InputAction @Options => m_Wrapper.m_FocusMode_Options;
         public InputActionMap Get() { return m_Wrapper.m_FocusMode; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -527,6 +550,9 @@ public partial class @InputController: IInputActionCollection2, IDisposable
             @RotateFly.started += instance.OnRotateFly;
             @RotateFly.performed += instance.OnRotateFly;
             @RotateFly.canceled += instance.OnRotateFly;
+            @Options.started += instance.OnOptions;
+            @Options.performed += instance.OnOptions;
+            @Options.canceled += instance.OnOptions;
         }
 
         private void UnregisterCallbacks(IFocusModeActions instance)
@@ -555,6 +581,9 @@ public partial class @InputController: IInputActionCollection2, IDisposable
             @RotateFly.started -= instance.OnRotateFly;
             @RotateFly.performed -= instance.OnRotateFly;
             @RotateFly.canceled -= instance.OnRotateFly;
+            @Options.started -= instance.OnOptions;
+            @Options.performed -= instance.OnOptions;
+            @Options.canceled -= instance.OnOptions;
         }
 
         public void RemoveCallbacks(IFocusModeActions instance)
@@ -591,5 +620,6 @@ public partial class @InputController: IInputActionCollection2, IDisposable
         void OnMovementFly(InputAction.CallbackContext context);
         void OnFastFly(InputAction.CallbackContext context);
         void OnRotateFly(InputAction.CallbackContext context);
+        void OnOptions(InputAction.CallbackContext context);
     }
 }
